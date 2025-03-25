@@ -153,25 +153,19 @@ void customCtrl::computeMyCtrl(Euler &torques)
     Vector3Df desired_position(2,2,-1);
     Vector3Df desired_velocity(0,0,0);
 
-    Vector3Df pos_error = uav_pos - desired_position;
-    Vector3Df vel_error = uav_vel - desired_velocity;
+    Vector2Df pos_error2D, vel_error2D;
 
-    float yawref = 0;
+    float yaw_ref;
+    float altittude_desired = -1;
+    float z, dz;
+    AltitudeValues(z, dz);
 
-    Quaternion qz(cos(yawref / 2), 0, 0, sin(yawref / 2));
-    qz.Normalize();
-    Quaternion qze = qz.GetConjugate() * mixQuaternion;
-    Vector3Df thetaze = 2 * qze.GetLogarithm();
-    float zsign = 1;
-    if (thetaze.GetNorm() >= 3.14159)
-    {
-        zsign = -1;
-    }
-    qz = zsign * qz;
+    PositionValues(pos_error2D, vel_error2D, yaw_ref);
 
-    // std::cout << "before to start controller" << std::endl;
+    Vector3Df pos_error = Vector3Df(pos_error2D.x, pos_error2D.y, altittude_desired - z);
+    Vector3Df vel_error = Vector3Df(vel_error2D.x, vel_error2D.y, -dz);
 
-    myCtrl->SetValues(pos_error, vel_error, mixQuaternion, currentAngularSpeed, qz);
+    myCtrl->SetValues(pos_error, vel_error, mixQuaternion, currentAngularSpeed);
     myCtrl->Update(GetTime());
 
     torques.roll = myCtrl->Output(0);

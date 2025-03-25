@@ -33,7 +33,7 @@ namespace flair {
                 ~MyController();
                 void UpdateFrom(const flair::core::io_data *data);
                 void Reset(void);
-                void SetValues(flair::core::Vector3Df pos_error, flair::core::Vector3Df vel_error, flair::core::Quaternion currentQuaternion, flair::core::Vector3Df omega, flair::core::Quaternion qz);
+                void SetValues(flair::core::Vector3Df pos_error, flair::core::Vector3Df vel_error, flair::core::Quaternion currentQuaternion, flair::core::Vector3Df omega);
                 void Saturate(flair::core::Vector3Df &vec, flair::core::Vector3Df sat);
 
             private : 
