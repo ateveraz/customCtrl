@@ -1,27 +1,31 @@
-//  created:    2011/05/01
+//  created:    2025/03/02
 //  filename:   customCtrl.h
 //
-//  author:     Guillaume Sanahuja
-//              Copyright Heudiasyc UMR UTC/CNRS 7253
+//  author:     ateveraz
 //
-//  version:    $Id: $
+//  version:    $Id: 0.1$
 //
-//  purpose:    demo cercle avec optitrack
+//  purpose:    Custom control template
 //
 //
 /*********************************************************************/
 
-#ifndef CIRCLEFOLLOWER_H
-#define CIRCLEFOLLOWER_H
+#ifndef CUSTOMCTRL_H
+#define CUSTOMCTRL_H
 
 #include <UavStateMachine.h>
+#include "myCtrl.h"
 
 namespace flair {
     namespace gui {
         class PushButton;
+        class GroupBox;
+        class ComboBox;
+        class CheckBox;
     }
     namespace filter {
         class TrajectoryGenerator2DCircle;
+        class MyController;
     }
     namespace meta {
         class MetaVrpnObject;
@@ -44,7 +48,13 @@ class customCtrl : public flair::meta::UavStateMachine {
             Circle
         };
 
+    enum class ControlMode_t {
+            Default, 
+            Custom
+    };
+
         BehaviourMode_t behaviourMode;
+        ControlMode_t controlMode_t;
         bool vrpnLost;
 
         void VrpnPositionHold(void);//flight mode
@@ -58,16 +68,32 @@ class customCtrl : public flair::meta::UavStateMachine {
         void PositionValues(flair::core::Vector2Df &pos_error,flair::core::Vector2Df &vel_error,float &yaw_ref);
         flair::core::AhrsData *GetReferenceOrientation(void) override;
         void SignalEvent(Event_t event) override;
+        void ComputeCustomTorques(flair::core::Euler &torques);
+        float ComputeCustomThrust(void);
+        void StartCustomTorques(void);
+        void StopCustomTorques(void);
+        void StartDefaultTorques(void);
+        void computeMyCtrl(flair::core::Euler &torques);
 
         flair::filter::Pid *uX, *uY;
+        flair::filter::MyController *myCtrl;
 
         flair::core::Vector2Df posHold;
         float yawHold;
+        float thrust;
 
         flair::gui::PushButton *startCircle,*stopCircle,*positionHold;
         flair::meta::MetaVrpnObject *targetVrpn,*uavVrpn;
         flair::filter::TrajectoryGenerator2DCircle *circle;
         flair::core::AhrsData *customReferenceOrientation,*customOrientation;
+
+        // Control mode GUI
+        flair::gui::GroupBox *controlModeBox;
+        flair::gui::ComboBox *control_selection;
+        flair::gui::PushButton *on_customController, *off_customController;
+
+        // Custom control law
+        flair::gui::DoubleSpinBox *deltaT_custom;
 };
 
-#endif // CIRCLEFOLLOWER_H
+#endif // CUSTOMCTRL_H

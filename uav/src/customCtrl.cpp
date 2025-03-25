@@ -1,12 +1,11 @@
-//  created:    2011/05/01
+//  created:    2025/03/02
 //  filename:   customCtrl.cpp
 //
-//  author:     Guillaume Sanahuja
-//              Copyright Heudiasyc UMR UTC/CNRS 7253
+//  author:     ateveraz
 //
-//  version:    $Id: $
+//  version:    $Id: 0.1$
 //
-//  purpose:    demo cercle avec optitrack
+//  purpose:    Custom control template
 //
 //
 /*********************************************************************/
@@ -28,6 +27,10 @@
 #include <Pid.h>
 #include <Ahrs.h>
 #include <AhrsData.h>
+#include <GroupBox.h>
+#include <ComboBox.h>
+#include <CheckBox.h>
+#include <iostream>
 
 using namespace std;
 using namespace flair::core;
@@ -36,7 +39,7 @@ using namespace flair::sensor;
 using namespace flair::filter;
 using namespace flair::meta;
 
-customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller), behaviourMode(BehaviourMode_t::Default), vrpnLost(false) {
+customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller), behaviourMode(BehaviourMode_t::Default), vrpnLost(false), controlMode_t(ControlMode_t::Default) {
     Uav* uav=GetUav();
 
     VrpnClient* vrpnclient=new VrpnClient("vrpn", uav->GetDefaultVrpnAddress(),80,uav->GetDefaultVrpnConnectionType());
@@ -67,6 +70,14 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     stopCircle=new PushButton(GetButtonsLayout()->LastRowLastCol(),"stop_circle");
     positionHold=new PushButton(GetButtonsLayout()->LastRowLastCol(),"position hold");
 
+    // Groupbox for control selection
+    controlModeBox = new GroupBox(GetButtonsLayout()->NewRow(),"Control mode");
+    on_customController = new PushButton(controlModeBox->NewRow(), "Activate");
+    off_customController = new PushButton(controlModeBox->LastRowLastCol(), "Deactivate");
+    control_selection = new ComboBox(controlModeBox->NewRow(), "Control selection");
+    control_selection->AddItem("Default");
+    control_selection->AddItem("Custom controller");
+
     circle=new TrajectoryGenerator2DCircle(vrpnclient->GetLayout()->NewRow(),"circle");
     uavVrpn->xPlot()->AddCurve(circle->GetMatrix()->Element(0,0),DataPlot::Blue);
     uavVrpn->yPlot()->AddCurve(circle->GetMatrix()->Element(0,1),DataPlot::Blue);
@@ -78,6 +89,10 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     uX->UseDefaultPlot(graphLawTab->NewRow());
     uY=new Pid(setupLawTab->At(1,1),"u_y");
     uY->UseDefaultPlot(graphLawTab->LastRowLastCol());
+
+    // Custom control law
+    Tab *setup_custom_controller = new Tab(getFrameworkManager()->GetTabWidget(),"Setup customCtrl");
+    myCtrl = new MyController(setup_custom_controller->At(0,0),"PD controller");
 
     customReferenceOrientation= new AhrsData(this,"reference");
     uav->GetAhrs()->AddPlot(customReferenceOrientation,DataPlot::Yellow);
@@ -91,9 +106,145 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
 customCtrl::~customCtrl() {
 }
 
+void customCtrl::ComputeCustomTorques(Euler &torques)
+{
+    // Implement your custom control law here or call a controller class. 
+    ComputeDefaultTorques(torques);
+    thrust = ComputeDefaultThrust();
+
+    // Selection of the control mode based on the control_selection combobox. 
+    switch (control_selection->CurrentIndex())
+    {
+        case 1:
+            controlMode_t = ControlMode_t::Custom;
+            computeMyCtrl(torques);
+            ComputeCustomThrust();
+            break;
+
+        default:
+            controlMode_t = ControlMode_t::Default;
+            Thread::Warn("customCtrl: default control law started. Check custom torque definition. \n");
+            EnterFailSafeMode();
+            break;
+    }
+}
+
+void customCtrl::computeMyCtrl(Euler &torques)
+{
+    Vector3Df uav_pos, uav_vel; // in VRPN coordinate system
+    Quaternion vrpn_quaternion;
+
+    uavVrpn->GetPosition(uav_pos);
+    uavVrpn->GetSpeed(uav_vel);
+    uavVrpn->GetQuaternion(vrpn_quaternion);
+
+    const AhrsData *currentOrientation = GetDefaultOrientation();
+    Quaternion currentQuaternion;
+    Vector3Df currentAngularRates;
+    currentOrientation->GetQuaternionAndAngularRates(currentQuaternion, currentAngularRates);
+
+    Vector3Df currentAngularSpeed = GetCurrentAngularSpeed();
+
+    // Use yaw from VRPN
+    Euler ahrsEuler = currentQuaternion.ToEuler();
+    ahrsEuler.yaw = vrpn_quaternion.ToEuler().yaw;
+    Quaternion mixQuaternion = ahrsEuler.ToQuaternion();
+
+    Vector3Df desired_position(2,2,-1);
+    Vector3Df desired_velocity(0,0,0);
+
+    Vector3Df pos_error = uav_pos - desired_position;
+    Vector3Df vel_error = uav_vel - desired_velocity;
+
+    float yawref = 0;
+
+    Quaternion qz(cos(yawref / 2), 0, 0, sin(yawref / 2));
+    qz.Normalize();
+    Quaternion qze = qz.GetConjugate() * mixQuaternion;
+    Vector3Df thetaze = 2 * qze.GetLogarithm();
+    float zsign = 1;
+    if (thetaze.GetNorm() >= 3.14159)
+    {
+        zsign = -1;
+    }
+    qz = zsign * qz;
+
+    // std::cout << "before to start controller" << std::endl;
+
+    myCtrl->SetValues(pos_error, vel_error, mixQuaternion, currentAngularSpeed, qz);
+    myCtrl->Update(GetTime());
+
+    torques.roll = myCtrl->Output(0);
+    torques.pitch = myCtrl->Output(1);
+    torques.yaw = myCtrl->Output(2);
+    thrust = myCtrl->Output(3);
+}
+
+float customCtrl::ComputeCustomThrust(void)
+{
+    // Implement your custom control law here or call a controller class.
+    if (thrust == 0)
+    {
+        thrust = ComputeDefaultThrust();
+    }
+    return ComputeDefaultThrust();
+}
+
+void customCtrl::StartCustomTorques(void)
+{
+    if (control_selection->CurrentIndex() == 0)
+    {
+        StartDefaultTorques();
+        StartCircle();
+        Thread::Info("customCtrl: default control law started\n");
+    }
+    else
+    {
+        if(SetTorqueMode(TorqueMode_t::Custom) && SetThrustMode(ThrustMode_t::Custom) && control_selection->CurrentIndex() != 0)
+        {
+            controlMode_t = ControlMode_t::Custom;
+            myCtrl->Reset();
+            StartCircle();
+            Thread::Info("customCtrl: custom control law started\n");
+        }
+        else
+        {
+            StopCustomTorques();
+            Thread::Err("customCtrl: could not start custom control law\n");
+        }
+    }
+    
+}
+
+void customCtrl::StopCustomTorques(void)
+{
+    StartDefaultTorques();
+    controlMode_t = ControlMode_t::Default;
+    Thread::Info("customCtrl: custom control law stopped\n");
+}
+
+void customCtrl::StartDefaultTorques(void)
+{
+    if (controlMode_t == ControlMode_t::Default)
+    {
+        Thread::Warn("customCtrl: already in default control law\n");
+        return;
+    }
+
+    if(SetTorqueMode(TorqueMode_t::Default) && SetThrustMode(ThrustMode_t::Default) )
+    {
+        controlMode_t = ControlMode_t::Default;
+        Thread::Info("customCtrl: default control law started\n");
+    }
+    else
+    {
+        Thread::Err("customCtrl: could not start default control law\n");
+    }
+}
+
 const AhrsData *customCtrl::GetOrientation(void) const {
     //get yaw from vrpn
-		Quaternion vrpnQuaternion;
+    Quaternion vrpnQuaternion;
     uavVrpn->GetQuaternion(vrpnQuaternion);
 
     //get roll, pitch and w from imu
@@ -229,6 +380,12 @@ void customCtrl::ExtraCheckPushButton(void) {
     if(positionHold->Clicked()) {
         VrpnPositionHold();
     }
+    if(on_customController->Clicked()) {
+        StartCustomTorques();
+    } 
+    if(off_customController->Clicked()) {
+        StopCustomTorques();
+    }
 }
 
 void customCtrl::ExtraCheckJoystick(void) {
@@ -290,9 +447,9 @@ void customCtrl::VrpnPositionHold(void) {
         Thread::Warn("customCtrl: already in vrpn position hold mode\n");
         return;
     }
-		Quaternion vrpnQuaternion;
+	Quaternion vrpnQuaternion;
     uavVrpn->GetQuaternion(vrpnQuaternion);
-		yawHold=vrpnQuaternion.ToEuler().yaw;
+	yawHold=vrpnQuaternion.ToEuler().yaw;
 
     Vector3Df vrpnPosition;
     uavVrpn->GetPosition(vrpnPosition);
