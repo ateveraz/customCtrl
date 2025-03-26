@@ -34,6 +34,8 @@ namespace flair {
                 void UpdateFrom(const flair::core::io_data *data);
                 void Reset(void);
                 void SetValues(flair::core::Vector3Df pos_error, flair::core::Vector3Df vel_error, flair::core::Quaternion currentQuaternion, flair::core::Vector3Df omega);
+                void applyMotorConstant(flair::core::Vector3Df &signal);
+                void applyMotorConstant(float &signal);
 
             private : 
                 float delta_t, initial_time;
@@ -42,7 +44,7 @@ namespace flair {
 
                 flair::core::Matrix *state;
                 flair::gui::Vector3DSpinBox *Kp_pos, *Kd_pos, *Ki_pos, *Kp_att, *Kd_att, *Ki_att;
-                flair::gui::DoubleSpinBox *deltaT_custom, *mass, *sat_pos, *sat_att;
+                flair::gui::DoubleSpinBox *deltaT_custom, *mass, *k_motor, *sat_pos, *sat_att, *sat_thrust;
         };
     }
 }

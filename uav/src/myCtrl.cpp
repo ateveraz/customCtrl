@@ -41,8 +41,10 @@ MyController::MyController(const LayoutPosition *position, const string &name) :
     GroupBox *general_parameters = new GroupBox(gui_customPID->NewRow(), "General parameters");
     deltaT_custom = new DoubleSpinBox(general_parameters->NewRow(), "Custom dt [s]", 0, 1, 0.001, 4);
     mass = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Mass [kg]", 0, 10, 0.01, 3);
-    sat_pos = new DoubleSpinBox(general_parameters->NewRow(), "Saturation pos [m]", 0, 10, 0.01, 3);
-    sat_att = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation att [rad]", 0, 10, 0.01, 3);
+    k_motor = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Motor constant", 0, 10, 0.01, 3);
+    sat_pos = new DoubleSpinBox(general_parameters->NewRow(), "Saturation pos", 0, 10, 0.01, 3);
+    sat_att = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation att", 0, 10, 0.01, 3);
+    sat_thrust = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation thrust", 0, 10, 0.01, 3);
 
     // Custom cartesian position controller
     GroupBox *custom_position = new GroupBox(gui_customPID->NewRow(), "Custom position controller");
@@ -113,10 +115,14 @@ void MyController::UpdateFrom(const io_data *data)
     tau.x = Kp_att_val.x*(rpy.roll + u.y) + Kd_att_val.x*omega.x;
     tau.y = Kp_att_val.y*(rpy.pitch - u.x) + Kd_att_val.y*omega.y;
     tau.z = Kp_att_val.z*(rpy.YawDistanceFrom(0)) + Kd_att_val.z*omega.z;
+    applyMotorConstant(tau);
     tau.Saturate(sat_att->Value());
 
     // Compute custom thrust
     thrust = - u.z - mass->Value()*g;
+    applyMotorConstant(thrust);
+    thrust = thrust > sat_thrust->Value() ? sat_thrust->Value() : thrust;
+    thrust = thrust < 0 ? 0 : thrust;   
 
     // Send controller output
     output->SetValue(0, 0, tau.x);
@@ -160,4 +166,18 @@ void MyController::SetValues(Vector3Df pos_error, Vector3Df vel_error, Quaternio
     input->SetValue(0, 3, omega.x);
     input->SetValue(1, 3, omega.y);
     input->SetValue(2, 3, omega.z);
+}
+
+void MyController::applyMotorConstant(Vector3Df &signal)
+{
+    float motor_constant = k_motor->Value();
+    signal.x = signal.x/motor_constant;
+    signal.y = signal.y/motor_constant;
+    signal.z = signal.z/motor_constant;
+}
+
+void MyController::applyMotorConstant(float &signal)
+{
+    float motor_constant = k_motor->Value();
+    signal = signal/motor_constant;
 }
