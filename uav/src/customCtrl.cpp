@@ -91,8 +91,8 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     uY->UseDefaultPlot(graphLawTab->LastRowLastCol());
 
     // Custom control law
-    Tab *setup_custom_controller = new Tab(getFrameworkManager()->GetTabWidget(),"Setup customCtrl");
-    myCtrl = new MyController(setup_custom_controller->At(0,0),"PD controller");
+    Tab *setup_custom_controller = new Tab(getFrameworkManager()->GetTabWidget(),"Custom controller");
+    myCtrl = new MyController(setup_custom_controller->At(0,0),"PID controller");
 
     customReferenceOrientation= new AhrsData(this,"reference");
     uav->GetAhrs()->AddPlot(customReferenceOrientation,DataPlot::Yellow);
