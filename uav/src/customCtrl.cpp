@@ -383,6 +383,13 @@ void customCtrl::ExtraCheckPushButton(void) {
 }
 
 void customCtrl::ExtraCheckJoystick(void) {
+    /*     Do not use cross, start nor select buttons!!
+    0: "start"       1: "select"      2: "square"      3: "triangle"
+    4: "circle"      5: "cross";      6: "left 1"      7: "left 2"
+    8: "left 3"      9: "right 1"     10: "right 2"    11: "right 3"
+    12: "up"         13: "down"       14: "left"       15: "right"
+    */
+   
     //R1 and Circle
     if(GetTargetController()->ButtonClicked(4) && GetTargetController()->IsButtonPressed(9)) {
         StartCircle();
