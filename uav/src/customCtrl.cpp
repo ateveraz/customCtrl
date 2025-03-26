@@ -131,57 +131,58 @@ void customCtrl::ComputeCustomTorques(Euler &torques)
 
 void customCtrl::computeMyCtrl(Euler &torques)
 {
-    Vector3Df uav_pos, uav_vel; // in VRPN coordinate system
+    // Get position, velocity and quaternion from the VRPN object in its coordinate system
+    Vector3Df uav_pos, uav_vel; 
     Quaternion vrpn_quaternion;
-
     uavVrpn->GetPosition(uav_pos);
     uavVrpn->GetSpeed(uav_vel);
     uavVrpn->GetQuaternion(vrpn_quaternion);
 
+    // Get current orientation and angular speed from the AHRS object (IMU)
     const AhrsData *currentOrientation = GetDefaultOrientation();
     Quaternion currentQuaternion;
     Vector3Df currentAngularRates;
     currentOrientation->GetQuaternionAndAngularRates(currentQuaternion, currentAngularRates);
-
     Vector3Df currentAngularSpeed = GetCurrentAngularSpeed();
 
-    // Use yaw from VRPN
+    // Use yaw from VRPN and roll, pitch from IMU
     Euler ahrsEuler = currentQuaternion.ToEuler();
     ahrsEuler.yaw = vrpn_quaternion.ToEuler().yaw;
     Quaternion mixQuaternion = ahrsEuler.ToQuaternion();
 
-    Vector3Df desired_position(2,2,-1);
-    Vector3Df desired_velocity(0,0,0);
-
+    // Compute the position and velocity errors in the UAV frame
     Vector2Df pos_error2D, vel_error2D;
-
+    float altittude_desired = -1; // Example of desired altitude [m] => (ALWAYS A NEGATIVE VALUE)
     float yaw_ref;
-    float altittude_desired = -1;
     float z, dz;
     AltitudeValues(z, dz);
-
     PositionValues(pos_error2D, vel_error2D, yaw_ref);
-
     Vector3Df pos_error = Vector3Df(pos_error2D.x, pos_error2D.y, altittude_desired - z);
     Vector3Df vel_error = Vector3Df(vel_error2D.x, vel_error2D.y, -dz);
 
+    // Set the values of the custom controller and update it
     myCtrl->SetValues(pos_error, vel_error, mixQuaternion, currentAngularSpeed);
     myCtrl->Update(GetTime());
 
+    // Apply the computed torques and thrust
     torques.roll = myCtrl->Output(0);
     torques.pitch = myCtrl->Output(1);
     torques.yaw = myCtrl->Output(2);
-    thrust = myCtrl->Output(3);
+    thrust = myCtrl->Output(3); 
+    // If you prefer, you can also use the ComputeDefaultThrust() function. E.g.:
+    // thrust = ComputeDefaultThrust();
+    // The desired take-off altitude will be used as a reference. 
 }
 
 float customCtrl::ComputeCustomThrust(void)
 {
-    // Implement your custom control law here or call a controller class.
+    // Implement your custom thrust computation here or asign its value from another function, because it is a global variable.
     if (thrust == 0)
     {
+        // For safety reasons, the default thrust is computed if the custom thrust is not defined.
         thrust = ComputeDefaultThrust();
     }
-    return ComputeDefaultThrust();
+    return thrust;
 }
 
 void customCtrl::StartCustomTorques(void)
@@ -246,6 +247,7 @@ const AhrsData *customCtrl::GetOrientation(void) const {
     Vector3Df ahrsAngularSpeed;
     GetDefaultOrientation()->GetQuaternionAndAngularRates(ahrsQuaternion, ahrsAngularSpeed);
 
+    // yaw from vrpn and roll, pitch from imu
     Euler ahrsEuler=ahrsQuaternion.ToEuler();
     ahrsEuler.yaw=vrpnQuaternion.ToEuler().yaw;
     Quaternion mixQuaternion=ahrsEuler.ToQuaternion();
@@ -389,7 +391,7 @@ void customCtrl::ExtraCheckJoystick(void) {
     8: "left 3"      9: "right 1"     10: "right 2"    11: "right 3"
     12: "up"         13: "down"       14: "left"       15: "right"
     */
-   
+
     //R1 and Circle
     if(GetTargetController()->ButtonClicked(4) && GetTargetController()->IsButtonPressed(9)) {
         StartCircle();
