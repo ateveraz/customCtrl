@@ -30,6 +30,8 @@
 #include <GroupBox.h>
 #include <ComboBox.h>
 #include <CheckBox.h>
+#include <DoubleSpinBox.h>
+#include <Vector3DSpinBox.h>
 #include <iostream>
 
 using namespace std;
@@ -77,6 +79,16 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     control_selection = new ComboBox(controlModeBox->NewRow(), "Control selection");
     control_selection->AddItem("Default");
     control_selection->AddItem("Custom controller");
+
+    // Custom tasks
+    GroupBox *task_selection_box = new GroupBox(GetButtonsLayout()->LastRowLastCol(), "Custom task");
+    task_selection = new ComboBox(task_selection_box->NewRow(), "Custom task");
+    task_selection->AddItem("Hovering at zero");
+    task_selection->AddItem("Regulation task");
+    task_selection->AddItem("Circle tracking");
+
+    desired_position = new Vector3DSpinBox(task_selection_box->NewRow(), "Desired position", -3, 3, 0.1, 3);
+    desired_yaw = new DoubleSpinBox(task_selection_box->LastRowLastCol(), "Desired yaw", -M_PI, M_PI, 0.1, 3);
 
     circle=new TrajectoryGenerator2DCircle(vrpnclient->GetLayout()->NewRow(),"circle");
     uavVrpn->xPlot()->AddCurve(circle->GetMatrix()->Element(0,0),DataPlot::Blue);
@@ -190,7 +202,7 @@ void customCtrl::StartCustomTorques(void)
     if (control_selection->CurrentIndex() == 0)
     {
         StartDefaultTorques();
-        StartCircle();
+        Start_task();
         Thread::Info("customCtrl: default control law started\n");
     }
     else
@@ -199,7 +211,7 @@ void customCtrl::StartCustomTorques(void)
         {
             controlMode_t = ControlMode_t::Custom;
             myCtrl->Reset();
-            StartCircle();
+            Start_task();
             Thread::Info("customCtrl: custom control law started\n");
         }
         else
@@ -303,7 +315,19 @@ void customCtrl::PositionValues(Vector2Df &pos_error,Vector2Df &vel_error,float 
         pos_error=uav_2Dpos-posHold;
         vel_error=uav_2Dvel;
         yaw_ref=yawHold;
-    } else { //Circle
+    } 
+    else if (behaviourMode==BehaviourMode_t::Hover) {
+        pos_error=uav_2Dpos;
+        vel_error=uav_2Dvel;
+        yaw_ref=0;
+    } 
+    else if (behaviourMode==BehaviourMode_t::Regulation) {
+        Vector2Df desired_position_xy(desired_position->Value().x, desired_position->Value().y);
+        pos_error=uav_2Dpos - desired_position_xy;
+        vel_error=uav_2Dvel;
+        yaw_ref=(float)desired_yaw->Value();
+    }
+    else { //Circle
         Vector3Df target_pos;
         Vector2Df circle_pos,circle_vel;
         Vector2Df target_2Dpos;
@@ -364,11 +388,19 @@ void customCtrl::ExtraSecurityCheck(void) {
             Land();
         }
     }
+    if ((!vrpnLost) && ((behaviourMode==BehaviourMode_t::Hover) || (behaviourMode==BehaviourMode_t::Regulation))) {
+        if (!uavVrpn->IsTracked(500)) {
+            Thread::Err("VRPN, uav lost\n");
+            vrpnLost=true;
+            EnterFailSafeMode();
+            Land();
+        }
+    }
 }
 
 void customCtrl::ExtraCheckPushButton(void) {
     if(startCircle->Clicked()) {
-        StartCircle();
+        Start_task();
     }
     if(stopCircle->Clicked()) {
         StopCircle();
@@ -394,7 +426,7 @@ void customCtrl::ExtraCheckJoystick(void) {
 
     //R1 and Circle
     if(GetTargetController()->ButtonClicked(4) && GetTargetController()->IsButtonPressed(9)) {
-        StartCircle();
+        Start_task();
     }
 
     //R1 and Cross
@@ -408,7 +440,7 @@ void customCtrl::ExtraCheckJoystick(void) {
     }
 }
 
-void customCtrl::StartCircle(void) {
+void customCtrl::Start_task(void) {
     if( behaviourMode==BehaviourMode_t::Circle) {
         Thread::Warn("customCtrl: already in circle mode\n");
         return;
@@ -419,20 +451,37 @@ void customCtrl::StartCircle(void) {
         Thread::Warn("customCtrl: could not start circle\n");
         return;
     }
-    Vector3Df uav_pos,target_pos;
-    Vector2Df uav_2Dpos,target_2Dpos;
 
-    targetVrpn->GetPosition(target_pos);
-    target_pos.To2Dxy(target_2Dpos);
-    circle->SetCenter(target_2Dpos);
+    // Defining desired task. 
+    if (task_selection->CurrentIndex() == 0) {
+        behaviourMode=BehaviourMode_t::Hover;
+        Thread::Info("customCtrl: hovering at zero\n");
+    }
+    else if (task_selection->CurrentIndex() == 1) {
+        behaviourMode=BehaviourMode_t::Regulation;
+        Thread::Info("customCtrl: regulation task\n");
+    }
+    else if (task_selection->CurrentIndex() == 2) {
+        Vector3Df uav_pos,target_pos;
+        Vector2Df uav_2Dpos,target_2Dpos;
 
-    uavVrpn->GetPosition(uav_pos);
-    uav_pos.To2Dxy(uav_2Dpos);
-    circle->StartTraj(uav_2Dpos);
+        targetVrpn->GetPosition(target_pos);
+        target_pos.To2Dxy(target_2Dpos);
+        circle->SetCenter(target_2Dpos);
 
-    uX->Reset();
-    uY->Reset();
-    behaviourMode=BehaviourMode_t::Circle;
+        uavVrpn->GetPosition(uav_pos);
+        uav_pos.To2Dxy(uav_2Dpos);
+        circle->StartTraj(uav_2Dpos);
+
+        uX->Reset();
+        uY->Reset();
+        behaviourMode=BehaviourMode_t::Circle;
+        Thread::Info("customCtrl: circle tracking\n");
+    }
+    else {
+        Thread::Err("customCtrl: unknown task\n");
+        return;
+    }
 }
 
 void customCtrl::StopCircle(void) {

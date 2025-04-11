@@ -22,6 +22,8 @@ namespace flair {
         class GroupBox;
         class ComboBox;
         class CheckBox;
+        class Vector3DSpinBox;
+        class DoubleSpinBox;
     }
     namespace filter {
         class TrajectoryGenerator2DCircle;
@@ -45,7 +47,9 @@ class customCtrl : public flair::meta::UavStateMachine {
 	enum class BehaviourMode_t {
             Default,
             PositionHold,
-            Circle
+            Circle, 
+            Regulation, 
+            Hover
         };
 
     enum class ControlMode_t {
@@ -58,7 +62,7 @@ class customCtrl : public flair::meta::UavStateMachine {
         bool vrpnLost;
 
         void VrpnPositionHold(void);//flight mode
-        void StartCircle(void);
+        void Start_task(void);
         void StopCircle(void);
         void ExtraSecurityCheck(void) override;
         void ExtraCheckPushButton(void) override;
@@ -94,6 +98,11 @@ class customCtrl : public flair::meta::UavStateMachine {
 
         // Custom control law
         flair::gui::DoubleSpinBox *deltaT_custom;
+
+        // Custom task
+        flair::gui::ComboBox *task_selection;
+        flair::gui::Vector3DSpinBox *desired_position;
+        flair::gui::DoubleSpinBox *desired_yaw;
 };
 
 #endif // CUSTOMCTRL_H
