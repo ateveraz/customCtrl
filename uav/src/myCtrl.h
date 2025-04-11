@@ -33,7 +33,7 @@ namespace flair {
                 ~MyController();
                 void UpdateFrom(const flair::core::io_data *data);
                 void Reset(void);
-                void SetValues(flair::core::Vector3Df pos_error, flair::core::Vector3Df vel_error, flair::core::Quaternion currentQuaternion, flair::core::Vector3Df omega);
+                void SetValues(flair::core::Vector3Df pos_error, flair::core::Vector3Df vel_error, flair::core::Quaternion currentQuaternion, flair::core::Vector3Df omega, float yaw_ref);
                 void applyMotorConstant(flair::core::Vector3Df &signal);
                 void applyMotorConstant(float &signal);
 

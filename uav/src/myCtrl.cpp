@@ -94,6 +94,7 @@ void MyController::UpdateFrom(const io_data *data)
     Quaternion q(input->Value(0, 2), input->Value(1, 2), input->Value(2, 2), input->Value(3, 2));
     Vector3Df omega(input->Value(0, 3), input->Value(1, 3), input->Value(2, 3));
     Quaternion qz(input->Value(0, 4), input->Value(1, 4), input->Value(2, 4), input->Value(3, 4));
+    float yaw_ref = input->Value(0, 4);
     input->ReleaseMutex();
 
     // Get tunning parameters from GUI
@@ -114,7 +115,7 @@ void MyController::UpdateFrom(const io_data *data)
     Euler rpy = q.ToEuler();    
     tau.x = Kp_att_val.x*(rpy.roll + u.y) + Kd_att_val.x*omega.x;
     tau.y = Kp_att_val.y*(rpy.pitch - u.x) + Kd_att_val.y*omega.y;
-    tau.z = Kp_att_val.z*(rpy.YawDistanceFrom(0)) + Kd_att_val.z*omega.z;
+    tau.z = Kp_att_val.z*(rpy.YawDistanceFrom(yaw_ref)) + Kd_att_val.z*omega.z;
     applyMotorConstant(tau);
     tau.Saturate(sat_att->Value());
 
@@ -147,12 +148,15 @@ void MyController::Reset(void)
     first_update = true;
 }
 
-void MyController::SetValues(Vector3Df pos_error, Vector3Df vel_error, Quaternion currentQuaternion, Vector3Df omega)
+void MyController::SetValues(Vector3Df pos_error, Vector3Df vel_error, Quaternion currentQuaternion, Vector3Df omega, float yaw_ref)
 {
-    // Define variables used in the controller. 
+    // Set the input values for the controller. 
+    // This function is called from the main controller to set the input values.
+    input->GetMutex();
     input->SetValue(0, 0, pos_error.x);
     input->SetValue(1, 0, pos_error.y);
     input->SetValue(2, 0, pos_error.z);
+    input->SetValue(0, 1, yaw_ref); // Desired yaw reference
 
     input->SetValue(0, 1, vel_error.x);
     input->SetValue(1, 1, vel_error.y);
@@ -166,6 +170,10 @@ void MyController::SetValues(Vector3Df pos_error, Vector3Df vel_error, Quaternio
     input->SetValue(0, 3, omega.x);
     input->SetValue(1, 3, omega.y);
     input->SetValue(2, 3, omega.z);
+
+    // Set yaw reference
+    input->SetValue(0, 4, yaw_ref);
+    input->ReleaseMutex();
 }
 
 void MyController::applyMotorConstant(Vector3Df &signal)

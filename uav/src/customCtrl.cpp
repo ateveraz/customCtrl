@@ -161,7 +161,7 @@ void customCtrl::computeMyCtrl(Euler &torques)
     Vector3Df vel_error = Vector3Df(vel_error2D.x, vel_error2D.y, -dz);
 
     // Set the values of the custom controller and update it
-    myCtrl->SetValues(pos_error, vel_error, mixQuaternion, currentAngularSpeed);
+    myCtrl->SetValues(pos_error, vel_error, mixQuaternion, currentAngularSpeed, yaw_ref);
     myCtrl->Update(GetTime());
 
     // Apply the computed torques and thrust
