@@ -111,6 +111,7 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     AddDataToControlLawLog(customReferenceOrientation);
     AddDeviceToControlLawLog(uX);
     AddDeviceToControlLawLog(uY);
+    AddDeviceToControlLawLog(myCtrl);
 
     customOrientation=new AhrsData(this,"orientation");
 }
