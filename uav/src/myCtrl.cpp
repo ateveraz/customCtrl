@@ -93,7 +93,6 @@ void MyController::UpdateFrom(const io_data *data)
     Vector3Df vel_error(input->Value(0, 1), input->Value(1, 1), input->Value(2, 1));
     Quaternion q(input->Value(0, 2), input->Value(1, 2), input->Value(2, 2), input->Value(3, 2));
     Vector3Df omega(input->Value(0, 3), input->Value(1, 3), input->Value(2, 3));
-    Quaternion qz(input->Value(0, 4), input->Value(1, 4), input->Value(2, 4), input->Value(3, 4));
     float yaw_ref = input->Value(0, 4);
     input->ReleaseMutex();
 
@@ -156,7 +155,6 @@ void MyController::SetValues(Vector3Df pos_error, Vector3Df vel_error, Quaternio
     input->SetValue(0, 0, pos_error.x);
     input->SetValue(1, 0, pos_error.y);
     input->SetValue(2, 0, pos_error.z);
-    input->SetValue(0, 1, yaw_ref); // Desired yaw reference
 
     input->SetValue(0, 1, vel_error.x);
     input->SetValue(1, 1, vel_error.y);
