@@ -165,13 +165,16 @@ void customCtrl::computeMyCtrl(Euler &torques)
 
     // Compute the position and velocity errors in the UAV frame
     Vector2Df pos_error2D, vel_error2D;
-    float altittude_desired = -1; // Example of desired altitude [m] => (ALWAYS A NEGATIVE VALUE)
+    // Example of desired altitude [m] => (ALWAYS A POSITIVE VALUE) 
+    // Because the AltitudeValues function returns a positive value also. However, the UAV's altitude is negative in the VRPN coordinate system.
+    float altittude_desired = desired_position->Value().z; 
     float yaw_ref;
     float z, dz;
     AltitudeValues(z, dz);
     PositionValues(pos_error2D, vel_error2D, yaw_ref);
-    Vector3Df pos_error = Vector3Df(pos_error2D.x, pos_error2D.y, altittude_desired - z);
-    Vector3Df vel_error = Vector3Df(vel_error2D.x, vel_error2D.y, -dz);
+    // Notice that the error definition is current - desired for x,y and z. 
+    Vector3Df pos_error = Vector3Df(pos_error2D.x, pos_error2D.y, z-altittude_desired);
+    Vector3Df vel_error = Vector3Df(vel_error2D.x, vel_error2D.y, dz);
 
     // Set the values of the custom controller and update it
     myCtrl->SetValues(pos_error, vel_error, mixQuaternion, currentAngularSpeed, yaw_ref);
@@ -194,6 +197,7 @@ float customCtrl::ComputeCustomThrust(void)
     {
         // For safety reasons, the default thrust is computed if the custom thrust is not defined.
         thrust = ComputeDefaultThrust();
+        std::cout << "Custom thrust not defined, using default thrust: " << thrust << std::endl;
     }
     return thrust;
 }

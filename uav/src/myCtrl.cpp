@@ -40,8 +40,8 @@ MyController::MyController(const LayoutPosition *position, const string &name) :
     GroupBox *gui_customPID = new GroupBox(position, name);
     GroupBox *general_parameters = new GroupBox(gui_customPID->NewRow(), "General parameters");
     deltaT_custom = new DoubleSpinBox(general_parameters->NewRow(), "Custom dt [s]", 0, 1, 0.001, 4);
-    mass = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Mass [kg]", 0, 10, 0.01, 3);
-    k_motor = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Motor constant", 0, 10, 0.01, 3);
+    mass = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Mass [kg]", 0, 10, 0.01, 4, 0.436);
+    k_motor = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Motor constant", 0, 50, 0.01, 4, 29.5870);
     sat_pos = new DoubleSpinBox(general_parameters->NewRow(), "Saturation pos", 0, 10, 0.01, 3);
     sat_att = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation att", 0, 10, 0.01, 3);
     sat_thrust = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation thrust", 0, 10, 0.01, 3);
@@ -108,6 +108,7 @@ void MyController::UpdateFrom(const io_data *data)
     u.x = Kp_pos_val.x*pos_error.x + Kd_pos_val.x*vel_error.x;
     u.y = Kp_pos_val.y*pos_error.y + Kd_pos_val.y*vel_error.y;
     u.z = Kp_pos_val.z*pos_error.z + Kd_pos_val.z*vel_error.z;
+    float ctrl_z = u.z; // This is the thrust needed to control the z position before saturation
     u.Saturate(sat_pos->Value());
 
     // Attitude custom controller
@@ -119,10 +120,19 @@ void MyController::UpdateFrom(const io_data *data)
     tau.Saturate(sat_att->Value());
 
     // Compute custom thrust
-    thrust = - u.z - mass->Value()*g;
+    float comp_mg = -mass->Value()*g; // This is the thrust needed to counteract gravity. Based on the default PID, it should be -0.397918 in Fl-Air simulator.  
+    thrust = comp_mg + ctrl_z; // This is the thrust needed to counteract gravity and control the z position
     applyMotorConstant(thrust);
-    thrust = thrust > sat_thrust->Value() ? sat_thrust->Value() : thrust;
-    thrust = thrust < 0 ? 0 : thrust;   
+    if(thrust < -sat_att->Value())
+    {
+        thrust = -sat_att->Value();
+    }
+    else if(thrust >= 0)
+    {
+        thrust = 0; 
+    }
+    // Debug thrust value
+    // std::cout << "Thrust comp: " << comp_mg/k_motor->Value() << " ctrl_z: " << ctrl_z << " thrust: " << thrust << "z-error: " << pos_error.z << std::endl;
 
     // Send controller output
     output->SetValue(0, 0, tau.x);
