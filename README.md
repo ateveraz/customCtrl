@@ -1,7 +1,7 @@
 # CustomCtrl Project
 
 ## Overview
-The `customCtrl` project provides a framework for developing custom controllers for UAVs based on FlAIR. It includes a skeleton structure for the project, with `myCtrl` containing a customizable controller. In this example, the controller implements a PID-based position controller (with gravity compensation) and an PID attitude controller. The project also includes utilities for controller saturation and motor constant conversion. The example task is derived from the CircleFollower demo.
+The `customCtrl` project provides a framework for developing custom controllers for UAVs based on FlAIR. It includes a skeleton structure for the project, with `myCtrl` containing a customizable controller. In this example, the controller implements a PD-based position controller (with gravity compensation) and an PD attitude controller. The project also includes utilities for controller saturation and motor constant conversion. The example task is derived from the CircleFollower demo.
 
 ## File structure
 - **`uav/src/customCtrl`**: This class contains the skeleton of the project.
