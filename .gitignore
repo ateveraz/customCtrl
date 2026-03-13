@@ -1,1 +1,3 @@
-.vscode/*
+.vscode/
+.clangd
+CMakePresets.json
