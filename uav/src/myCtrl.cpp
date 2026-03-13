@@ -34,27 +34,29 @@ MyController::MyController(const LayoutPosition *position, const string &name)
     state = new Matrix(this, log_labels, floatType, name);
     delete log_labels;
 
-    // GUI for custom PID
-    auto *gui_customPID = new GroupBox(position, name);
-    auto *general_parameters = new GroupBox(gui_customPID->NewRow(), "General parameters");
+    // GUI for custom controller
+    auto *gui_customCtrl = new GroupBox(position, name);
+    auto *general_parameters = new GroupBox(gui_customCtrl->NewRow(), " ");
     deltaT_custom = new DoubleSpinBox(general_parameters->NewRow(), "Custom dt [s]", 0, 1, 0.001, 4);
     mass = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Mass [kg]", 0, 10, 0.01, 4, 0.436);
     k_motor = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Motor constant", 0, 50, 0.01, 4, 29.5870);
-    sat_pos = new DoubleSpinBox(general_parameters->NewRow(), "Saturation pos", 0, 10, 0.01, 3);
+    sat_thrust = new DoubleSpinBox(general_parameters->NewRow(), "Saturation thrust", 0, 10, 0.01, 3);   
+    sat_pos = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation pos", 0, 10, 0.01, 3);
     sat_att = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation att", 0, 10, 0.01, 3);
-    sat_thrust = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation thrust", 0, 10, 0.01, 3);
 
     // Custom cartesian position controller
-    auto *custom_position = new GroupBox(gui_customPID->NewRow(), "Custom position controller");
-    Kp_pos = new Vector3DSpinBox(custom_position->NewRow(), "Kp_pos", 0, 100, 0.1, 3);
+    auto *custom_position = new GroupBox(gui_customCtrl->NewRow(), "Custom position controller");
+    Kp_pos = new Vector3DSpinBox(custom_position->LastRowLastCol(), "Kp_pos", 0, 100, 0.1, 3);
     Kd_pos = new Vector3DSpinBox(custom_position->LastRowLastCol(), "Kd_pos", 0, 100, 0.1, 3);
-    Ki_pos = new Vector3DSpinBox(custom_position->LastRowLastCol(), "Ki_pos", 0, 100, 0.1, 3);
+
 
     // Custom attitude controller
-    auto *custom_attitude = new GroupBox(gui_customPID->NewRow(), "Custom attitude controller");
-    Kp_att = new Vector3DSpinBox(custom_attitude->NewRow(), "Kp_att", 0, 100, 0.1, 3);
+    auto *custom_attitude = new GroupBox(gui_customCtrl->NewRow(), "Custom attitude controller");
+    Kp_att = new Vector3DSpinBox(custom_attitude->LastRowLastCol(), "Kp_att", 0, 100, 0.1, 3);
     Kd_att = new Vector3DSpinBox(custom_attitude->LastRowLastCol(), "Kd_att", 0, 100, 0.1, 3);
-    Ki_att = new Vector3DSpinBox(custom_attitude->LastRowLastCol(), "Ki_att", 0, 100, 0.1, 3);
+
+    // Show cartesian errors plot
+    plotCartesianErrors(gui_customCtrl->NewRow());
 
     AddDataToLog(state);
 }
@@ -98,10 +100,8 @@ void MyController::UpdateFrom(const io_data *data)
     // Get tunning parameters from GUI
     Vector3Df Kp_pos_val(Kp_pos->Value().x, Kp_pos->Value().y, Kp_pos->Value().z);
     Vector3Df Kd_pos_val(Kd_pos->Value().x, Kd_pos->Value().y, Kd_pos->Value().z);
-    Vector3Df Ki_pos_val(Ki_pos->Value().x, Ki_pos->Value().y, Ki_pos->Value().z);
     Vector3Df Kp_att_val(Kp_att->Value().x, Kp_att->Value().y, Kp_att->Value().z);
     Vector3Df Kd_att_val(Kd_att->Value().x, Kd_att->Value().y, Kd_att->Value().z);
-    Vector3Df Ki_att_val(Ki_att->Value().x, Ki_att->Value().y, Ki_att->Value().z);
 
     // Cartesian custom controller
     u_position.x = (Kp_pos_val.x*pos_error.x) + (Kd_pos_val.x*vel_error.x);
@@ -179,6 +179,16 @@ void MyController::SetValues(const Vector3Df &pos_error, const Vector3Df &vel_er
     // Set yaw reference
     input->SetValue(0, 4, yaw_ref);
     input->ReleaseMutex();
+}
+
+void MyController::plotCartesianErrors(const LayoutPosition *position)
+{
+    // Example of how to plot the position errors in the GUI. 
+    // Any variable that is defined in the state matrix can be plotted. Just remember to set its value in the UpdateFrom function and to add it to the log_labels matrix in the constructor.
+    auto *plot = new DataPlot1D(position, "Cartesian errors", -1, 1);
+    plot->AddCurve(state->Element(0), DataPlot::Red); // x error
+    plot->AddCurve(state->Element(1), DataPlot::Black); // y error
+    plot->AddCurve(state->Element(2), DataPlot::Blue); // yaw error
 }
 
 void MyController::applyMotorConstant(Vector3Df &signal)

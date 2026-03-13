@@ -43,8 +43,10 @@ namespace flair {
                 bool first_update;
 
                 flair::core::Matrix *state;
-                flair::gui::Vector3DSpinBox *Kp_pos, *Kd_pos, *Ki_pos, *Kp_att, *Kd_att, *Ki_att;
+                flair::gui::Vector3DSpinBox *Kp_pos, *Kd_pos, *Kp_att, *Kd_att ;
                 flair::gui::DoubleSpinBox *deltaT_custom, *mass, *k_motor, *sat_pos, *sat_att, *sat_thrust;
+
+                void plotCartesianErrors(const flair::gui::LayoutPosition *position);
         };
     }
 }
