@@ -11,7 +11,6 @@
 #include <DataPlot1D.h>
 #include <cmath>
 #include <Euler.h>
-#include <iostream>
 #include <Label.h>
 #include <Vector3DSpinBox.h>
 #include <Pid.h>
@@ -21,15 +20,14 @@ using namespace flair::core;
 using namespace flair::gui;
 using namespace flair::filter;
 
-MyController::MyController(const LayoutPosition *position, const string &name) : ControlLaw(position->getLayout(),name,4)
+MyController::MyController(const LayoutPosition *position, const string &name) 
+    : ControlLaw(position->getLayout(), name, 4), first_update(true), delta_t(0.001F), initial_time(0.0F)
 {
-    first_update = true;
-
     // Input matrix
     input = new Matrix(this, 4, 5, floatType, name);
 
     // Matrix descriptor for logging. It should be always a nx1 matrix. 
-    MatrixDescriptor *log_labels = new MatrixDescriptor(3, 1);
+    auto *log_labels = new MatrixDescriptor(3, 1);
     log_labels->SetElementName(0, 0, "x_error");
     log_labels->SetElementName(1, 0, "y_error");
     log_labels->SetElementName(2, 0, "yaw_error");
@@ -37,8 +35,8 @@ MyController::MyController(const LayoutPosition *position, const string &name) :
     delete log_labels;
 
     // GUI for custom PID
-    GroupBox *gui_customPID = new GroupBox(position, name);
-    GroupBox *general_parameters = new GroupBox(gui_customPID->NewRow(), "General parameters");
+    auto *gui_customPID = new GroupBox(position, name);
+    auto *general_parameters = new GroupBox(gui_customPID->NewRow(), "General parameters");
     deltaT_custom = new DoubleSpinBox(general_parameters->NewRow(), "Custom dt [s]", 0, 1, 0.001, 4);
     mass = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Mass [kg]", 0, 10, 0.01, 4, 0.436);
     k_motor = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Motor constant", 0, 50, 0.01, 4, 29.5870);
@@ -47,13 +45,13 @@ MyController::MyController(const LayoutPosition *position, const string &name) :
     sat_thrust = new DoubleSpinBox(general_parameters->LastRowLastCol(), "Saturation thrust", 0, 10, 0.01, 3);
 
     // Custom cartesian position controller
-    GroupBox *custom_position = new GroupBox(gui_customPID->NewRow(), "Custom position controller");
+    auto *custom_position = new GroupBox(gui_customPID->NewRow(), "Custom position controller");
     Kp_pos = new Vector3DSpinBox(custom_position->NewRow(), "Kp_pos", 0, 100, 0.1, 3);
     Kd_pos = new Vector3DSpinBox(custom_position->LastRowLastCol(), "Kd_pos", 0, 100, 0.1, 3);
     Ki_pos = new Vector3DSpinBox(custom_position->LastRowLastCol(), "Ki_pos", 0, 100, 0.1, 3);
 
     // Custom attitude controller
-    GroupBox *custom_attitude = new GroupBox(gui_customPID->NewRow(), "Custom attitude controller");
+    auto *custom_attitude = new GroupBox(gui_customPID->NewRow(), "Custom attitude controller");
     Kp_att = new Vector3DSpinBox(custom_attitude->NewRow(), "Kp_att", 0, 100, 0.1, 3);
     Kd_att = new Vector3DSpinBox(custom_attitude->LastRowLastCol(), "Kd_att", 0, 100, 0.1, 3);
     Ki_att = new Vector3DSpinBox(custom_attitude->LastRowLastCol(), "Ki_att", 0, 100, 0.1, 3);
@@ -68,22 +66,23 @@ MyController::~MyController()
 
 void MyController::UpdateFrom(const io_data *data)
 {
-    float current_time = double(GetTime())/1000000000-initial_time;
+    float current_time = (float(GetTime())/1000000000.0F) - initial_time;
     float thrust = 0.0;
-    Vector3Df u, tau;
+    Vector3Df u_position;
+    Vector3Df tau;
 
     if(deltaT_custom->Value() == 0)
     {
-        delta_t = (float)(data->DataDeltaTime())/1000000000;
+        delta_t = (float)(data->DataDeltaTime())/1000000000.0F;
     }
     else
     {
-        delta_t = deltaT_custom->Value();
+        delta_t = (float)deltaT_custom->Value();
     }
    
     if(first_update)
     {
-        initial_time = double(GetTime())/1000000000;
+        initial_time = float(GetTime())/1000000000.0F;
         first_update = false;
     }
 
@@ -91,7 +90,7 @@ void MyController::UpdateFrom(const io_data *data)
     input->GetMutex();
     Vector3Df pos_error(input->Value(0, 0), input->Value(1, 0), input->Value(2, 0));
     Vector3Df vel_error(input->Value(0, 1), input->Value(1, 1), input->Value(2, 1));
-    Quaternion q(input->Value(0, 2), input->Value(1, 2), input->Value(2, 2), input->Value(3, 2));
+    Quaternion quat(input->Value(0, 2), input->Value(1, 2), input->Value(2, 2), input->Value(3, 2));
     Vector3Df omega(input->Value(0, 3), input->Value(1, 3), input->Value(2, 3));
     float yaw_ref = input->Value(0, 4);
     input->ReleaseMutex();
@@ -105,34 +104,32 @@ void MyController::UpdateFrom(const io_data *data)
     Vector3Df Ki_att_val(Ki_att->Value().x, Ki_att->Value().y, Ki_att->Value().z);
 
     // Cartesian custom controller
-    u.x = Kp_pos_val.x*pos_error.x + Kd_pos_val.x*vel_error.x;
-    u.y = Kp_pos_val.y*pos_error.y + Kd_pos_val.y*vel_error.y;
-    u.z = Kp_pos_val.z*pos_error.z + Kd_pos_val.z*vel_error.z;
-    float ctrl_z = u.z; // This is the thrust needed to control the z position before saturation
-    u.Saturate(sat_pos->Value());
+    u_position.x = (Kp_pos_val.x*pos_error.x) + (Kd_pos_val.x*vel_error.x);
+    u_position.y = (Kp_pos_val.y*pos_error.y) + (Kd_pos_val.y*vel_error.y);
+    u_position.z = (Kp_pos_val.z*pos_error.z) + (Kd_pos_val.z*vel_error.z);
+    float ctrl_z = u_position.z; // This is the thrust needed to control the z position before saturation
+    u_position.Saturate((float)sat_pos->Value());
 
     // Attitude custom controller
-    Euler rpy = q.ToEuler();    
-    tau.x = Kp_att_val.x*(rpy.roll + u.y) + Kd_att_val.x*omega.x;
-    tau.y = Kp_att_val.y*(rpy.pitch - u.x) + Kd_att_val.y*omega.y;
-    tau.z = Kp_att_val.z*(rpy.YawDistanceFrom(yaw_ref)) + Kd_att_val.z*omega.z;
+    Euler rpy = quat.ToEuler();    
+    tau.x = (Kp_att_val.x*(rpy.roll + u_position.y)) + (Kd_att_val.x*omega.x);
+    tau.y = (Kp_att_val.y*(rpy.pitch - u_position.x)) + (Kd_att_val.y*omega.y);
+    tau.z = (Kp_att_val.z*(rpy.YawDistanceFrom(yaw_ref))) + (Kd_att_val.z*omega.z);
     applyMotorConstant(tau);
-    tau.Saturate(sat_att->Value());
+    tau.Saturate((float)sat_att->Value());
 
     // Compute custom thrust
-    float comp_mg = -mass->Value()*g; // This is the thrust needed to counteract gravity. Based on the default PID, it should be -0.397918 in Fl-Air simulator.  
+    float comp_mg = -(float)mass->Value()*g; // This is the thrust needed to counteract gravity. Based on the default PID, it should be -0.397918 in Fl-Air simulator.  
     thrust = comp_mg + ctrl_z; // This is the thrust needed to counteract gravity and control the z position
     applyMotorConstant(thrust);
-    if(thrust < -sat_att->Value())
+    if(thrust < -sat_thrust->Value())
     {
-        thrust = -sat_att->Value();
+        thrust = -(float)sat_thrust->Value();
     }
     else if(thrust >= 0)
     {
         thrust = 0; 
     }
-    // Debug thrust value
-    // std::cout << "Thrust comp: " << comp_mg/k_motor->Value() << " ctrl_z: " << ctrl_z << " thrust: " << thrust << "z-error: " << pos_error.z << std::endl;
 
     // Send controller output
     output->SetValue(0, 0, tau.x);
@@ -146,7 +143,7 @@ void MyController::UpdateFrom(const io_data *data)
     state->GetMutex();
     state->SetValue(0, 0, pos_error.x);
     state->SetValue(1, 0, pos_error.y);
-    state->SetValue(2, 0, rpy.YawDistanceFrom(0));
+    state->SetValue(2, 0, rpy.YawDistanceFrom(yaw_ref));
     state->ReleaseMutex();
 
     ProcessUpdate(output);
@@ -157,7 +154,7 @@ void MyController::Reset(void)
     first_update = true;
 }
 
-void MyController::SetValues(Vector3Df pos_error, Vector3Df vel_error, Quaternion currentQuaternion, Vector3Df omega, float yaw_ref)
+void MyController::SetValues(const Vector3Df &pos_error, const Vector3Df &vel_error, const Quaternion &currentQuaternion, const Vector3Df &omega, float yaw_ref)
 {
     // Set the input values for the controller. 
     // This function is called from the main controller to set the input values.
@@ -186,7 +183,7 @@ void MyController::SetValues(Vector3Df pos_error, Vector3Df vel_error, Quaternio
 
 void MyController::applyMotorConstant(Vector3Df &signal)
 {
-    float motor_constant = k_motor->Value();
+    auto motor_constant = (float)k_motor->Value();
     signal.x = signal.x/motor_constant;
     signal.y = signal.y/motor_constant;
     signal.z = signal.z/motor_constant;
@@ -194,6 +191,6 @@ void MyController::applyMotorConstant(Vector3Df &signal)
 
 void MyController::applyMotorConstant(float &signal)
 {
-    float motor_constant = k_motor->Value();
+    auto motor_constant = (float)k_motor->Value();
     signal = signal/motor_constant;
 }
