@@ -15,12 +15,6 @@ set(SRC_FILES
     src/CustomControl.cpp
 )
 
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/resources/core2-64/x4.sh.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated/core2-64/x4.sh"
-    @ONLY
-)
-
 FLAIR_DEMO(${PROJECT_NAME} "${SRC_FILES}"
     DEST_DIR ${FLAIR_DEMO_DIRECTORY}
     COPY_RESOURCES
