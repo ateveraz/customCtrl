@@ -1,16 +1,23 @@
-PROJECT(customCtrl_simulator)
 cmake_minimum_required(VERSION 2.8)
 
-SET(FLAIR_USE_SIMULATOR TRUE)
-SET(FLAIR_USE_SIMULATOR_GL TRUE)
+project(${SIMULATOR_EXECUTABLE_NAME})
 
-include($ENV{FLAIR_ROOT}/flair-src/cmake-modules/GlobalCmakeFlair.cmake)
+set(FLAIR_USE_SIMULATOR TRUE)
+set(FLAIR_USE_SIMULATOR_GL TRUE)
 
-SET(SRC_FILES
-	./src/main.cpp
+include("$ENV{FLAIR_ROOT}/flair-src/cmake-modules/GlobalCmakeFlair.cmake")
+
+set(SRC_FILES
+    src/main.cpp
+)
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/core2-64/simulator_x4.sh.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/core2-64/simulator_x4.sh"
+    @ONLY
 )
 
 FLAIR_DEMO_HOST_CXX(${PROJECT_NAME} "${SRC_FILES}"
-           DEST_DIR customCtrl
-           COPY_RESOURCES
+    DEST_DIR ${FLAIR_DEMO_DIRECTORY}
+    COPY_RESOURCES
 )
