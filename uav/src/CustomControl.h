@@ -1,5 +1,5 @@
-#ifndef MYCTRL_H
-#define MYCTRL_H
+#ifndef CUSTOMCTRL_H
+#define CUSTOMCTRL_H
 
 #include <Object.h>
 #include <ControlLaw.h>
@@ -18,19 +18,15 @@ namespace flair {
         class Label;
         class Vector3DSpinBox;
     }
-    namespace filter {
-        // If you prefer to use a custom controller class, you can define it here.
-        // ...
-    }
 }
 
 namespace flair {
     namespace filter {
-        class MyController : public ControlLaw
+        class CustomControl : public ControlLaw
         {
             public :
-                MyController(const flair::gui::LayoutPosition *position, const std::string &name);
-                ~MyController();
+                CustomControl(const flair::gui::LayoutPosition *position, const std::string &name);
+                ~CustomControl();
                 void UpdateFrom(const flair::core::io_data *data);
                 void Reset(void);
                 void SetValues(const flair::core::Vector3Df &pos_error, const flair::core::Vector3Df &vel_error, const flair::core::Quaternion &currentQuaternion, const flair::core::Vector3Df &omega, float yaw_ref);
@@ -51,4 +47,4 @@ namespace flair {
     }
 }
 
-#endif // MYCTRL_H
+#endif // CUSTOMCTRL_H

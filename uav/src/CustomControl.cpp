@@ -1,4 +1,4 @@
-#include "myCtrl.h"
+#include "CustomControl.h"
 #include <Matrix.h>
 #include <Vector3D.h>
 #include <TabWidget.h>
@@ -20,7 +20,7 @@ using namespace flair::core;
 using namespace flair::gui;
 using namespace flair::filter;
 
-MyController::MyController(const LayoutPosition *position, const string &name) 
+CustomControl::CustomControl(const LayoutPosition *position, const string &name) 
     : ControlLaw(position->getLayout(), name, 4), first_update(true), delta_t(0.001F), initial_time(0.0F)
 {
     // Input matrix
@@ -62,12 +62,12 @@ MyController::MyController(const LayoutPosition *position, const string &name)
     AddDataToLog(state);
 }
 
-MyController::~MyController()
+CustomControl::~CustomControl()
 {
     delete state;
 }
 
-void MyController::UpdateFrom(const io_data *data)
+void CustomControl::UpdateFrom(const io_data *data)
 {
     float current_time = (float(GetTime())/1000000000.0F) - initial_time;
     float thrust = 0.0;
@@ -151,12 +151,12 @@ void MyController::UpdateFrom(const io_data *data)
     ProcessUpdate(output);
 }
 
-void MyController::Reset(void)
+void CustomControl::Reset(void)
 {
     first_update = true;
 }
 
-void MyController::SetValues(const Vector3Df &pos_error, const Vector3Df &vel_error, const Quaternion &currentQuaternion, const Vector3Df &omega, float yaw_ref)
+void CustomControl::SetValues(const Vector3Df &pos_error, const Vector3Df &vel_error, const Quaternion &currentQuaternion, const Vector3Df &omega, float yaw_ref)
 {
     // Set the input values for the controller. 
     // This function is called from the main controller to set the input values.
@@ -183,7 +183,7 @@ void MyController::SetValues(const Vector3Df &pos_error, const Vector3Df &vel_er
     input->ReleaseMutex();
 }
 
-void MyController::plotCartesianErrors(const LayoutPosition *position)
+void CustomControl::plotCartesianErrors(const LayoutPosition *position)
 {
     // Example of how to plot the position errors in the GUI. 
     // Any variable that is defined in the state matrix can be plotted. Just remember to set its value in the UpdateFrom function and to add it to the log_labels matrix in the constructor.
@@ -195,7 +195,7 @@ void MyController::plotCartesianErrors(const LayoutPosition *position)
 
 }
 
-void MyController::applyMotorConstant(Vector3Df &signal)
+void CustomControl::applyMotorConstant(Vector3Df &signal)
 {
     auto motor_constant = (float)k_motor->Value();
     signal.x = signal.x/motor_constant;
@@ -203,7 +203,7 @@ void MyController::applyMotorConstant(Vector3Df &signal)
     signal.z = signal.z/motor_constant;
 }
 
-void MyController::applyMotorConstant(float &signal)
+void CustomControl::applyMotorConstant(float &signal)
 {
     auto motor_constant = (float)k_motor->Value();
     signal = signal/motor_constant;
