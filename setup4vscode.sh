@@ -26,7 +26,7 @@
 echo "⚙️  Starting Intelligent Flair project configuration..."
 
 # Default relative build folder
-BUILD_FOLDER_REL="mysrc/\${sourceDirName}"
+BUILD_FOLDER_REL="mysrc"
 
 while getopts ":f:" opt; do
   case $opt in
