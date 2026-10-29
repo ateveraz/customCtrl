@@ -87,7 +87,7 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     desired_position = new Vector3DSpinBox(taskModeBox->NewRow(), "Desired position [m]", -3, 3, 0.1, 3);
     desired_yaw = new DoubleSpinBox(taskModeBox->NewRow(), "Desired yaw [rad]", -M_PI, M_PI, 0.1, 3);
 
-    circle=new TrajectoryGenerator2DCircle(vrpnclient->GetLayout()->NewRow(),"circle");
+    circle=new TrajectoryGenerator2DCircle(GetButtonsLayout()->NewRow(),"circle");
     uavVrpn->xPlot()->AddCurve(circle->GetMatrix()->Element(0,0),DataPlot::Blue);
     uavVrpn->yPlot()->AddCurve(circle->GetMatrix()->Element(0,1),DataPlot::Blue);
     uavVrpn->VxPlot()->AddCurve(circle->GetMatrix()->Element(1,0),DataPlot::Blue);
