@@ -27,10 +27,11 @@ MyController::MyController(const LayoutPosition *position, const string &name)
     input = new Matrix(this, 4, 5, floatType, name);
 
     // Matrix descriptor for logging. It should be always a nx1 matrix. 
-    auto *log_labels = new MatrixDescriptor(3, 1);
+    auto *log_labels = new MatrixDescriptor(4, 1);
     log_labels->SetElementName(0, 0, "x_error");
     log_labels->SetElementName(1, 0, "y_error");
-    log_labels->SetElementName(2, 0, "yaw_error");
+    log_labels->SetElementName(2, 0, "z_error");
+    log_labels->SetElementName(3, 0, "yaw_error");
     state = new Matrix(this, log_labels, floatType, name);
     delete log_labels;
 
@@ -143,7 +144,8 @@ void MyController::UpdateFrom(const io_data *data)
     state->GetMutex();
     state->SetValue(0, 0, pos_error.x);
     state->SetValue(1, 0, pos_error.y);
-    state->SetValue(2, 0, rpy.YawDistanceFrom(yaw_ref));
+    state->SetValue(2, 0, pos_error.z);
+    state->SetValue(3, 0, rpy.YawDistanceFrom(yaw_ref));
     state->ReleaseMutex();
 
     ProcessUpdate(output);
@@ -188,7 +190,9 @@ void MyController::plotCartesianErrors(const LayoutPosition *position)
     auto *plot = new DataPlot1D(position, "Cartesian errors", -1, 1);
     plot->AddCurve(state->Element(0), DataPlot::Red); // x error
     plot->AddCurve(state->Element(1), DataPlot::Black); // y error
-    plot->AddCurve(state->Element(2), DataPlot::Blue); // yaw error
+    plot->AddCurve(state->Element(2), DataPlot::Blue); // z error
+    plot->AddCurve(state->Element(3), DataPlot::Green); // yaw error
+
 }
 
 void MyController::applyMotorConstant(Vector3Df &signal)
