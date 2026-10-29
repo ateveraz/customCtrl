@@ -1,5 +1,5 @@
 //  created:    2025/03/02
-//  filename:   customCtrl.cpp
+//  filename:   UavApplication.cpp
 //
 //  author:     ateveraz
 //
@@ -10,7 +10,7 @@
 //
 /*********************************************************************/
 
-#include "customCtrl.h"
+#include "UavApplication.h"
 #include <TargetController.h>
 #include <Uav.h>
 #include <GridLayout.h>
@@ -32,6 +32,7 @@
 #include <CheckBox.h>
 #include <DoubleSpinBox.h>
 #include <Vector3DSpinBox.h>
+#include "CustomControl.h"
 #include <iostream>
 
 using namespace std;
@@ -41,7 +42,7 @@ using namespace flair::sensor;
 using namespace flair::filter;
 using namespace flair::meta;
 
-customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller), behaviourMode(BehaviourMode_t::Default), vrpnLost(false), controlMode_t(ControlMode_t::Default) {
+UavApplication::UavApplication(TargetController *controller): UavStateMachine(controller), behaviourMode(BehaviourMode_t::Default), vrpnLost(false), controlMode_t(ControlMode_t::Default) {
     Uav* uav=GetUav();
 
     VrpnClient* vrpnclient=new VrpnClient("vrpn", uav->GetDefaultVrpnAddress(),80,uav->GetDefaultVrpnConnectionType());
@@ -101,7 +102,7 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
 
     // Custom control law
     Tab *setup_custom_controller = new Tab(getFrameworkManager()->GetTabWidget(),"Custom controller");
-    myCtrl = new MyController(setup_custom_controller->At(0,0),"Parameters");
+    myCtrl = new CustomControl(setup_custom_controller->At(0,0),"Parameters");
 
     customReferenceOrientation= new AhrsData(this,"reference");
     uav->GetAhrs()->AddPlot(customReferenceOrientation,DataPlot::Yellow);
@@ -113,10 +114,10 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     customOrientation=new AhrsData(this,"orientation");
 }
 
-customCtrl::~customCtrl() {
+UavApplication::~UavApplication() {
 }
 
-void customCtrl::ComputeCustomTorques(Euler &torques)
+void UavApplication::ComputeCustomTorques(Euler &torques)
 {
     // Implement your custom control law here or call a controller class. 
     ComputeDefaultTorques(torques);
@@ -133,13 +134,13 @@ void customCtrl::ComputeCustomTorques(Euler &torques)
 
         default:
             controlMode_t = ControlMode_t::Default;
-            Thread::Warn("customCtrl: default control law started. Check custom torque definition. \n");
+            Thread::Warn("UavApplication: default control law started. Check custom torque definition. \n");
             EnterFailSafeMode();
             break;
     }
 }
 
-void customCtrl::computeMyCtrl(Euler &torques)
+void UavApplication::computeMyCtrl(Euler &torques)
 {
     // Get position, velocity and quaternion from the VRPN object in its coordinate system
     Vector3Df uav_pos, uav_vel; 
@@ -167,7 +168,7 @@ void customCtrl::computeMyCtrl(Euler &torques)
     float altittude_desired = desired_position->Value().z; 
     if (altittude_desired <= 0)
     {
-        Thread::Warn("customCtrl: desired altitude must be positive, see AltitudeValues function.\n");
+        Thread::Warn("UavApplication: desired altitude must be positive, see AltitudeValues function.\n");
         EnterFailSafeMode();
         return;
     }
@@ -193,7 +194,7 @@ void customCtrl::computeMyCtrl(Euler &torques)
     // The desired take-off altitude will be used as a reference. 
 }
 
-float customCtrl::ComputeCustomThrust(void)
+float UavApplication::ComputeCustomThrust(void)
 {
     // Implement your custom thrust computation here or asign its value from another function, because it is a global variable.
     if (thrust == 0)
@@ -205,13 +206,13 @@ float customCtrl::ComputeCustomThrust(void)
     return thrust;
 }
 
-void customCtrl::StartController(void)
+void UavApplication::StartController(void)
 {
     if (control_selection->CurrentIndex() == 0)
     {
         StartDefaultTorques();
         Start_task();
-        Thread::Info("customCtrl: default control law started\n");
+        Thread::Info("UavApplication: default control law started\n");
     }
     else
     {
@@ -220,45 +221,45 @@ void customCtrl::StartController(void)
             controlMode_t = ControlMode_t::Custom;
             myCtrl->Reset();
             Start_task();
-            Thread::Info("customCtrl: custom control law started\n");
+            Thread::Info("UavApplication: custom control law started\n");
         }
         else
         {
             StopCustomController();
-            Thread::Err("customCtrl: could not start custom control law\n");
+            Thread::Err("UavApplication: could not start custom control law\n");
         }
     }
     
 }
 
-void customCtrl::StopCustomController(void)
+void UavApplication::StopCustomController(void)
 {
     StartDefaultTorques();
     EnterFailSafeMode();
     controlMode_t = ControlMode_t::Default;
-    Thread::Info("customCtrl: failing safe mode activated, custom control law stopped\n");
+    Thread::Info("UavApplication: failing safe mode activated, custom control law stopped\n");
 }
 
-void customCtrl::StartDefaultTorques(void)
+void UavApplication::StartDefaultTorques(void)
 {
     if (controlMode_t == ControlMode_t::Default)
     {
-        Thread::Warn("customCtrl: already in default control law\n");
+        Thread::Warn("UavApplication: already in default control law\n");
         return;
     }
 
     if(SetTorqueMode(TorqueMode_t::Default) && SetThrustMode(ThrustMode_t::Default) )
     {
         controlMode_t = ControlMode_t::Default;
-        Thread::Info("customCtrl: default control law started\n");
+        Thread::Info("UavApplication: default control law started\n");
     }
     else
     {
-        Thread::Err("customCtrl: could not start default control law\n");
+        Thread::Err("UavApplication: could not start default control law\n");
     }
 }
 
-const AhrsData *customCtrl::GetOrientation(void) const {
+const AhrsData *UavApplication::GetOrientation(void) const {
     //get yaw from vrpn
     Quaternion vrpnQuaternion;
     uavVrpn->GetQuaternion(vrpnQuaternion);
@@ -278,7 +279,7 @@ const AhrsData *customCtrl::GetOrientation(void) const {
     return customOrientation;
 }
 
-void customCtrl::AltitudeValues(float &z,float &dz) const{
+void UavApplication::AltitudeValues(float &z,float &dz) const{
     Vector3Df uav_pos,uav_vel;
 
     uavVrpn->GetPosition(uav_pos);
@@ -288,7 +289,7 @@ void customCtrl::AltitudeValues(float &z,float &dz) const{
     dz=-uav_vel.z;
 }
 
-AhrsData *customCtrl::GetReferenceOrientation(void) {
+AhrsData *UavApplication::GetReferenceOrientation(void) {
     Vector2Df pos_err, vel_err; // in Uav coordinate system
     float yaw_ref;
     Euler refAngles;
@@ -310,7 +311,7 @@ AhrsData *customCtrl::GetReferenceOrientation(void) {
     return customReferenceOrientation;
 }
 
-void customCtrl::PositionValues(Vector2Df &pos_error,Vector2Df &vel_error,float &yaw_ref) {
+void UavApplication::PositionValues(Vector2Df &pos_error,Vector2Df &vel_error,float &yaw_ref) {
     Vector3Df uav_pos,uav_vel; // in VRPN coordinate system
     Vector2Df uav_2Dpos,uav_2Dvel; // in VRPN coordinate system
 
@@ -364,7 +365,7 @@ void customCtrl::PositionValues(Vector2Df &pos_error,Vector2Df &vel_error,float 
     vel_error.Rotate(-currentAngles.yaw);
 }
 
-void customCtrl::SignalEvent(Event_t event) {
+void UavApplication::SignalEvent(Event_t event) {
     UavStateMachine::SignalEvent(event);
     switch(event) {
     case Event_t::TakingOff:
@@ -382,7 +383,7 @@ void customCtrl::SignalEvent(Event_t event) {
     }
 }
 
-void customCtrl::ExtraSecurityCheck(void) {
+void UavApplication::ExtraSecurityCheck(void) {
     if ((!vrpnLost) && ((behaviourMode==BehaviourMode_t::Circle) || (behaviourMode==BehaviourMode_t::PositionHold))) {
         if (!targetVrpn->IsTracked(500)) {
             Thread::Err("VRPN, target lost\n");
@@ -407,7 +408,7 @@ void customCtrl::ExtraSecurityCheck(void) {
     }
 }
 
-void customCtrl::ExtraCheckPushButton(void) 
+void UavApplication::ExtraCheckPushButton(void) 
 {
     if(on_controller->Clicked()) {
         StartController();
@@ -420,7 +421,7 @@ void customCtrl::ExtraCheckPushButton(void)
     }
 }
 
-void customCtrl::ExtraCheckJoystick(void) {
+void UavApplication::ExtraCheckJoystick(void) {
     /*     Do not use cross, start nor select buttons!!
     0: "start"       1: "select"      2: "square"      3: "triangle"
     4: "circle"      5: "cross";      6: "left 1"      7: "left 2"
@@ -439,26 +440,26 @@ void customCtrl::ExtraCheckJoystick(void) {
     }
 }
 
-void customCtrl::Start_task(void) {
+void UavApplication::Start_task(void) {
     if( behaviourMode==BehaviourMode_t::Circle) {
-        Thread::Warn("customCtrl: already in circle mode\n");
+        Thread::Warn("UavApplication: already in circle mode\n");
         return;
     }
     if (SetOrientationMode(OrientationMode_t::Custom)) {
-        Thread::Info("customCtrl: starting custom task ...\n");
+        Thread::Info("UavApplication: starting custom task ...\n");
     } else {
-        Thread::Warn("customCtrl: could not start custom task\n");
+        Thread::Warn("UavApplication: could not start custom task\n");
         return;
     }
 
     // Defining desired task. 
     if (task_selection->CurrentIndex() == 0) {
         behaviourMode=BehaviourMode_t::Hover;
-        Thread::Info("customCtrl: hovering at zero\n");
+        Thread::Info("UavApplication: hovering at zero\n");
     }
     else if (task_selection->CurrentIndex() == 1) {
         behaviourMode=BehaviourMode_t::Regulation;
-        Thread::Info("customCtrl: regulation task\n");
+        Thread::Info("UavApplication: regulation task\n");
     }
     else if (task_selection->CurrentIndex() == 2) {
         Vector3Df uav_pos,target_pos;
@@ -475,28 +476,28 @@ void customCtrl::Start_task(void) {
         uX->Reset();
         uY->Reset();
         behaviourMode=BehaviourMode_t::Circle;
-        Thread::Info("customCtrl: circle tracking\n");
+        Thread::Info("UavApplication: circle tracking\n");
     }
     else {
         EnterFailSafeMode();
-        Thread::Err("customCtrl: unknown task\n");
+        Thread::Err("UavApplication: unknown task\n");
         return;
     }
 }
 
-void customCtrl::StopCircle(void) {
+void UavApplication::StopCircle(void) {
     if( behaviourMode!=BehaviourMode_t::Circle) {
-        Thread::Warn("customCtrl: not in circle mode\n");
+        Thread::Warn("UavApplication: not in circle mode\n");
         return;
     }
     circle->FinishTraj();
     //GetJoystick()->Rumble(0x70);
-    Thread::Info("customCtrl: finishing circle\n");
+    Thread::Info("UavApplication: finishing circle\n");
 }
 
-void customCtrl::VrpnPositionHold(void) {
+void UavApplication::VrpnPositionHold(void) {
     if( behaviourMode==BehaviourMode_t::PositionHold) {
-        Thread::Warn("customCtrl: already in vrpn position hold mode\n");
+        Thread::Warn("UavApplication: already in vrpn position hold mode\n");
         return;
     }
 	Quaternion vrpnQuaternion;
@@ -511,5 +512,5 @@ void customCtrl::VrpnPositionHold(void) {
     uY->Reset();
     behaviourMode=BehaviourMode_t::PositionHold;
     SetOrientationMode(OrientationMode_t::Custom);
-    Thread::Info("customCtrl: holding position\n");
+    Thread::Info("UavApplication: holding position\n");
 }

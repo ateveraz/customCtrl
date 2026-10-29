@@ -11,7 +11,7 @@
 //
 /*********************************************************************/
 
-#include "customCtrl.h"
+#include "UavApplication.h"
 #include <UavFactory.h>
 #include <FrameworkManager.h>
 #include <stdio.h>
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
 
     Uav* drone=CreateUav(name,uav_type, "use_camv=false use_camh=false");
     TargetEthController *controller=new TargetEthController("Dualshock3",ds3port);
-    customCtrl* demo=new customCtrl(controller);
+    UavApplication* demo=new UavApplication(controller);
 
     demo->Start();
     demo->Join();

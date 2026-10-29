@@ -1,5 +1,5 @@
 //  created:    2025/03/02
-//  filename:   customCtrl.h
+//  filename:   UavApplication.h
 //
 //  author:     ateveraz
 //
@@ -10,11 +10,11 @@
 //
 /*********************************************************************/
 
-#ifndef CUSTOMCTRL_H
-#define CUSTOMCTRL_H
+#ifndef UAV_APPLICATION_H
+#define UAV_APPLICATION_H
 
 #include <UavStateMachine.h>
-#include "myCtrl.h"
+#include "CustomControl.h"
 
 namespace flair {
     namespace gui {
@@ -27,7 +27,7 @@ namespace flair {
     }
     namespace filter {
         class TrajectoryGenerator2DCircle;
-        class MyController;
+        class CustomControl;
     }
     namespace meta {
         class MetaVrpnObject;
@@ -37,10 +37,10 @@ namespace flair {
     }
 }
 
-class customCtrl : public flair::meta::UavStateMachine {
+class UavApplication : public flair::meta::UavStateMachine {
     public:
-        customCtrl(flair::sensor::TargetController *controller);
-        ~customCtrl();
+        UavApplication(flair::sensor::TargetController *controller);
+        ~UavApplication();
 
     private:
 
@@ -80,7 +80,7 @@ class customCtrl : public flair::meta::UavStateMachine {
         void computeMyCtrl(flair::core::Euler &torques);
 
         flair::filter::Pid *uX, *uY;
-        flair::filter::MyController *myCtrl;
+        flair::filter::CustomControl *myCtrl;
 
         flair::core::Vector2Df posHold;
         float yawHold;
@@ -105,4 +105,4 @@ class customCtrl : public flair::meta::UavStateMachine {
         flair::gui::DoubleSpinBox *desired_yaw;
 };
 
-#endif // CUSTOMCTRL_H
+#endif // UavApplication_H

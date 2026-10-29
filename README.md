@@ -1,32 +1,315 @@
-# CustomCtrl Project
+# FlAIR UAV Control Template
 
-## Overview
-The `customCtrl` project provides a framework for developing custom controllers for UAVs based on FlAIR. It includes a skeleton structure for the project, with `myCtrl` containing a customizable controller. In this example, the controller implements a PD-based position controller (with gravity compensation) and an PD attitude controller. The project also includes utilities for controller saturation and motor constant conversion. The example task is derived from the CircleFollower demo.
+A C++ template for developing custom UAV controllers with FlAIR. It separates the application and flight-task logic (`UavApplication`) from the control algorithm (`CustomControl`), and includes host simulation resources for FlAIR X4 and X8 models.
 
-## File structure
-- **`uav/src/customCtrl`**: This class contains the skeleton of the project.
-- **`uav/src/myCtrl`**: This class defines the customized controller.
+The application name is configurable: choose a project name, generate the editor configuration, select the target architecture, build/install, and launch the installed project with `flairrun`.
 
-## About Building the Project
-You can build this template by following the instructions in the section below (strongly recommended) or by following the instructions in the FlAIR Wiki: https://gitlab.utc.fr/uav-hds/flair/flair-src/-/wikis/build-system. By default, the project is named `customCtrl`.
+## 1. Requirements
 
-If you want to rename it, you can clone this folder using the instructions in the FlAIR Wiki for cloning a demo: https://gitlab.utc.fr/uav-hds/flair/flair-src/-/wikis/demos/clone. This allows you to clone the project and set a custom source directory name.
+### FlAIR installation
 
-## VS Code & CLion Setup
-This project includes a setup script `setup4vscode.sh` to generate configurations (CMakePresets, IntelliSense, etc.) for VS Code and CLion.
+Install FlAIR and the SDK/toolchains required by your target platform before configuring this repository. Follow the official guide:
 
-### Usage
-Run the script from the project root:
+- [FlAIR installation and documentation](https://gitlab.utc.fr/uav-hds/flair/flair-src/-/wikis/home)
+- [FlAIR build-system documentation](https://gitlab.utc.fr/uav-hds/flair/flair-src/-/wikis/build-system)
+
+`setup4vscode.sh` does not install FlAIR, compilers, or dependencies. It generates local build presets and editor configuration for an existing installation.
+
+### Development tools
+
+- A Linux development environment compatible with your FlAIR SDK.
+- Bash and Git.
+- FlAIR libraries and the SDK/toolchain for each intended architecture.
+- CMake 3.21 or newer for the generated presets, which use schema version 3.
+- The build tools required by the SDK; the generated presets use Unix Makefiles.
+- FlAIR ground-station tools, simulator graphics support, and model assets for host simulation.
+
+The SDK compiler and its CMake/toolchain files must be available through the initialized FlAIR environment. Do not substitute the host compiler for an embedded target toolchain.
+
+### VS Code integration
+
+Install Visual Studio Code and these extensions:
+
+| Extension | Purpose |
+| --- | --- |
+| CMake Tools (`ms-vscode.cmake-tools`) | Select presets, configure, build, and install. |
+| C/C++ (`ms-vscode.cpptools`) | C++ language support and debugging, if using the Microsoft C++ workflow. |
+| clangd (`llvm-vs-code-extensions.vscode-clangd`) | Language-server indexing and navigation, if using the generated `.clangd` configuration. |
+
+Install the `clangd` executable as well if using the clangd extension. Choose a consistent language-service configuration rather than enabling overlapping IntelliSense providers unintentionally.
+
+### Load the FlAIR/SDK environment
+
+Initialize the environment using the commands provided by your FlAIR installation guide. The exact command depends on your installed SDK.
+
+Check the terminal environment before proceeding:
+
 ```bash
-chmod +x setup4vscode.sh
-./setup4vscode.sh [options]
+printf 'FLAIR_ROOT=%s\n' "$FLAIR_ROOT"
+printf 'OECORE_CMAKE_TOOLCHAINS=%s\n' "$OECORE_CMAKE_TOOLCHAINS"
 ```
 
-### Options
-- **`-f <path>`**: (Optional) Specify a relative path inside `flair-build` for build artifacts. This allows you to control the exact structure of your build output directory.
-  - **Default**: `mysrc/${sourceDirName}`
-  - **Example**: 
-    ```bash
-    ./setup4vscode.sh -f custom_path/my_test
-    ```
-    This will configure the build output to be `flair-build/custom_path/my_test`.
+The setup script expects:
+
+- `FLAIR_ROOT`: root of the FlAIR installation/workspace.
+- `OECORE_CMAKE_TOOLCHAINS`: architecture identifiers provided by the SDK.
+- `OECORE_CMAKE_<ARCH>_TOOLCHAIN`: toolchain-file path for each architecture.
+- `OECORE_<ARCH>_NATIVE_SYSROOT`: native SDK sysroot used to locate CMake.
+
+These variables should come from the SDK environment, not from guessed paths.
+
+## 2. Choose the project name
+
+Before configuring, open the project configuration file:
+
+```text
+cmake/ProjectConfig.cmake
+```
+
+Set `UAV_PROJECT_NAME` to the name you want the application and its FlAIR installation directory to use. For example:
+
+```cmake
+set(UAV_PROJECT_NAME "templateCtrl"
+    CACHE STRING "UAV application name and FlAIR installation directory")
+```
+
+The remaining names are derived from this value:
+
+```text
+UAV application base:       templateCtrl
+Simulator application base: templateCtrl_simulator
+FlAIR demo directory:       templateCtrl
+```
+
+Use a name starting with a letter and containing only letters, digits, underscores, or hyphens. Avoid spaces.
+
+The source classes remain `UavApplication` and `CustomControl`; they do not need to be renamed for each project. The checkout directory may have the same name for clarity, but the current configuration file defines the application name. Renaming the folder alone does not update that value.
+
+> This branch uses `cmake/ProjectConfig.cmake`. Do not confuse this path with a separate `config/ProjectName.cmake` generated by other setup-script variants discussed during development.
+
+### Existing CMake cache
+
+`UAV_PROJECT_NAME` is a cache variable. If this build directory was already configured with another name, editing the default in the `.cmake` file alone may leave the old cached value active.
+
+Update it explicitly when reconfiguring, for example:
+
+```bash
+cmake --preset flair-cross-compile-core2_64 \
+    -DUAV_PROJECT_NAME=templateCtrl
+```
+
+Alternatively, use CMake Tools to delete the selected build configuration's cache and reconfigure. Verify the resulting name before installing.
+
+## 3. Generate the configuration, then open VS Code
+
+From the repository root, in a terminal with the FlAIR/SDK environment loaded:
+
+```bash
+chmod +x setup4vscode.sh
+./setup4vscode.sh
+code .
+```
+
+Run the setup script before opening the project in VS Code. It generates or overwrites:
+
+- `CMakePresets.json`.
+- `.vscode/settings.json`.
+- `.clangd`.
+
+Back up local editor customizations before rerunning it.
+
+If VS Code was already running before the SDK environment was loaded, fully close all VS Code instances and reopen the project from the initialized terminal:
+
+```bash
+code .
+```
+
+A window reload alone may not refresh the environment inherited by the first VS Code process. Reopening from the initialized terminal is particularly important if CMake Tools does not detect the SDK compiler.
+
+### Optional build-directory prefix
+
+```bash
+./setup4vscode.sh -f experiments
+```
+
+`-f` changes the build-directory prefix under `$FLAIR_ROOT/flair-build`. It does not change the project name or FlAIR installation destination.
+
+The current script constructs the build location using:
+
+```text
+$FLAIR_ROOT/flair-build/<prefix>/<source-directory-name>/<architecture>
+```
+
+Inspect `binaryDir` in `CMakePresets.json` for the exact generated location.
+
+> The current `.clangd` generator includes a fixed ARM SDK sysroot. Review it for your installation and selected architecture if indexing or header resolution is incorrect. Editor diagnostics and successful compiler configuration are separate checks.
+
+## 4. Select the target architecture
+
+In VS Code:
+
+1. Open the Command Palette.
+2. Run `CMake: Select Configure Preset`.
+3. Select the preset for your target.
+4. Run `CMake: Configure`.
+5. Select the matching build preset with `CMake: Select Build Preset`.
+6. Run `CMake: Build`.
+
+Use the SDK architecture corresponding to the actual destination:
+
+| Destination | Architecture selection |
+| --- | --- |
+| Development PC / host simulation in this FlAIR setup | `core2_64` |
+| Intel Aero in this FlAIR setup | `core2_64`, with the Aero-specific runtime configuration and deployment procedure |
+| Supported Parrot UAVs | The ARM toolchain matching the specific Parrot model and installed SDK |
+
+`core2_64` is the preset identifier used in this environment; installed FlAIR directories use `core2-64`. These are not interchangeable spellings in commands and paths.
+
+Parrot targets do not all use the same ARM toolchain. Select the exact identifier exported by your SDK rather than assuming a generic preset named `ARM`.
+
+List the available presets if needed:
+
+```bash
+cmake --list-presets
+cmake --build --list-presets
+```
+
+Selecting a target architecture does not automatically deploy the application to a physical UAV. Follow the FlAIR procedure for transferring and starting the application on Intel Aero or Parrot hardware, and use the appropriate network, device, and XML settings.
+
+## 5. Build and install
+
+For the PC/Intel Aero architecture selection:
+
+```bash
+cmake --preset flair-cross-compile-core2_64
+cmake --build --preset default-core2_64
+```
+
+If updating a previously configured project name:
+
+```bash
+cmake --preset flair-cross-compile-core2_64 \
+    -DUAV_PROJECT_NAME=templateCtrl
+
+cmake --build --preset default-core2_64
+```
+
+For an ARM target, use the configure and build presets actually generated for that target.
+
+The generated `default-<architecture>` build preset targets `install`: it builds the application and invokes the FlAIR installation rules, including the required runtime resources.
+
+In the current host setup, a project named `templateCtrl` is installed under:
+
+```text
+$FLAIR_ROOT/flair-install/bin/demos/core2-64/templateCtrl/
+```
+
+The launchers use `_rt` or `_nrt` executable variants according to the configured FlAIR runtime. Available variants depend on the SDK/build.
+
+### Generated launchers
+
+The host X4 launch scripts are generated from:
+
+```text
+uav/launch/x4.sh.in
+simulator/launch/simulator_x4.sh.in
+```
+
+CMake substitutes the application names, generates `x4.sh` and `simulator_x4.sh`, and installs those executable scripts. The `.sh.in` files are source templates, not the files to execute.
+
+The current explicit host-launcher installation rules target `core2-64`. They do not replace the model-specific launch/deployment configuration needed for ARM hardware.
+
+## 6. Model and control architecture
+
+### Simulation model
+
+The simulator uses the X4 or X8 model supplied by FlAIR. The model and simulated sensors are instantiated in `simulator/src/main.cpp`; this template does not redefine the full vehicle dynamics there.
+
+The graphical simulation includes simulated IMU and other scene/sensor components, along with a scene object named `target`. XML files and launch arguments configure the selected vehicle, interface, and simulation resources.
+
+The default X4 simulation uses a consistent UAV/tracking identity, `Drone_0`, in the controller and simulator launchers. Keep these identities aligned when changing the setup.
+
+### Application layer: `UavApplication`
+
+`uav/src/UavApplication.cpp/.h` handles:
+
+- The FlAIR UAV state machine and control-mode transitions.
+- Tracking/state acquisition and integration with VRPN.
+- Reference generation and task selection.
+- GUI controls, controller activation, and tracking-loss checks.
+- Passing state/reference data to the custom control algorithm.
+
+The template provides horizontal hovering at the origin, position regulation, circle tracking, and a position-hold action. Circle tracking uses the tracked `target` object as its center.
+
+### Algorithm layer: `CustomControl`
+
+`uav/src/CustomControl.cpp/.h` contains the replaceable control law. The included example uses:
+
+- PD position feedback.
+- PD attitude feedback.
+- Gravity compensation in the thrust channel.
+- Motor-constant scaling and command saturation.
+- GUI parameters and logging of position/yaw errors.
+
+The algorithm receives position and velocity errors, the current orientation quaternion, angular velocity, and desired yaw. It returns four control channels:
+
+| Output index | Channel |
+| --- | --- |
+| `0` | Roll command |
+| `1` | Pitch command |
+| `2` | Yaw command |
+| `3` | Thrust command |
+
+Preserve or explicitly redesign the template's coordinate, sign, and actuator-scaling conventions when implementing another controller. Do not assume the output channels are unscaled SI actuator torques and thrust.
+
+For controllers with internal states, implement their initialization/reset behavior in `Reset()` as well as their update equations in `UpdateFrom()`.
+
+### Important operating conventions
+
+- The custom control path requires a strictly positive desired altitude.
+- Altitude is obtained by reversing the tracking vertical-coordinate sign in the application layer.
+- Horizontal position/velocity errors are rotated into the vehicle heading frame.
+- The orientation used by the custom control path combines IMU roll/pitch with tracking yaw.
+- The runtime UAV name (`-n`, such as `Drone_0`) is independent of the project/executable name.
+- Review gains, mass, motor constant, saturation limits, tracking, and stop/fail-safe behavior in simulation before hardware use.
+
+## 7. Run the installed project
+
+After a successful build and installation, with the FlAIR runtime environment loaded:
+
+```bash
+flairrun "templateCtrl"
+```
+
+Replace `templateCtrl` with the configured `UAV_PROJECT_NAME`:
+
+```bash
+flairrun "yourProjectName"
+```
+
+`flairrun` uses the installed project's FlAIR launch configuration. For the supplied host X4 setup, the launch list starts the ground station, simulator, and UAV application through the installed scripts.
+
+Compiling without installing is not sufficient for this workflow: the installed executables, XML resources, `.flair` launch configuration, and generated `.sh` scripts must be present.
+
+For physical hardware, use a launch configuration appropriate to that vehicle. The default host X4 simulation launcher is not a hardware deployment command.
+
+## 8. Troubleshooting
+
+| Problem | Check |
+| --- | --- |
+| `FLAIR_ROOT` or toolchain variables are missing | Load the FlAIR/SDK environment before running setup or opening VS Code. |
+| CMake Tools does not detect the compiler | Close all VS Code instances and reopen with `code .` from the initialized terminal. |
+| The selected preset is missing | Rerun setup and inspect `cmake --list-presets`. |
+| The application still uses an old project name | Update `UAV_PROJECT_NAME` in the selected build cache or delete that cache and reconfigure. |
+| Build and installation directories have different names | The checkout basename controls the generated build path; `UAV_PROJECT_NAME` controls the application/demo name. |
+| An installed launcher still contains `@...@` | Check `configure_file()` and ensure the generated `.sh`, not the `.sh.in`, is installed. |
+| The generated launcher cannot find its executable | Verify the installation destination and availability of the selected `_rt`/`_nrt` variant. |
+| `flairrun` is not found | Initialize the FlAIR runtime environment and verify the FlAIR launcher tools are installed. |
+| `flairrun` cannot find the project | Check the configured project name, successful install, and installed `.flair` resources. |
+| clangd reports missing headers despite a successful build | Review its generated sysroot/include paths for the selected SDK. |
+
+## License and attribution
+
+See [LICENSE](LICENSE) for the repository license. Preserve the copyright and authorship notices in reused files. FlAIR and SDK components retain their own license terms.
+
+The original editor setup script credits Sergio Urzúa (`@sergio1817`).
