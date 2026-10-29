@@ -67,28 +67,25 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     vrpnclient->Start();
     
     uav->GetAhrs()->YawPlot()->AddCurve(uavVrpn->State()->Element(2),DataPlot::Green);
-																 
-    startCircle=new PushButton(GetButtonsLayout()->NewRow(),"start_circle");
-    stopCircle=new PushButton(GetButtonsLayout()->LastRowLastCol(),"stop_circle");
-    positionHold=new PushButton(GetButtonsLayout()->LastRowLastCol(),"position hold");
 
     // Groupbox for control selection
     controlModeBox = new GroupBox(GetButtonsLayout()->NewRow(),"Control mode");
-    on_customController = new PushButton(controlModeBox->NewRow(), "Activate");
-    off_customController = new PushButton(controlModeBox->LastRowLastCol(), "Deactivate");
     control_selection = new ComboBox(controlModeBox->NewRow(), "Control selection");
     control_selection->AddItem("Default");
     control_selection->AddItem("Custom controller");
+    on_customController = new PushButton(controlModeBox->NewRow(), "Activate");
+    off_customController = new PushButton(controlModeBox->NewRow(), "Use default");
+    positionHold = new PushButton(controlModeBox->NewRow(),"Position hold");
 
-    // Custom tasks
-    GroupBox *task_selection_box = new GroupBox(GetButtonsLayout()->LastRowLastCol(), "Custom task");
-    task_selection = new ComboBox(task_selection_box->NewRow(), "Custom task");
+    // Groupbox for task selection
+    taskModeBox = new GroupBox(GetButtonsLayout()->LastRowLastCol(), "Task mode");
+    task_selection = new ComboBox(taskModeBox->NewRow(), "Task selection");
     task_selection->AddItem("Hovering at zero");
     task_selection->AddItem("Regulation task");
     task_selection->AddItem("Circle tracking");
 
-    desired_position = new Vector3DSpinBox(task_selection_box->NewRow(), "Desired position", -3, 3, 0.1, 3);
-    desired_yaw = new DoubleSpinBox(task_selection_box->LastRowLastCol(), "Desired yaw", -M_PI, M_PI, 0.1, 3);
+    desired_position = new Vector3DSpinBox(taskModeBox->NewRow(), "Desired position", -3, 3, 0.1, 3);
+    desired_yaw = new DoubleSpinBox(taskModeBox->NewRow(), "Desired yaw", -M_PI, M_PI, 0.1, 3);
 
     circle=new TrajectoryGenerator2DCircle(vrpnclient->GetLayout()->NewRow(),"circle");
     uavVrpn->xPlot()->AddCurve(circle->GetMatrix()->Element(0,0),DataPlot::Blue);
@@ -202,7 +199,7 @@ float customCtrl::ComputeCustomThrust(void)
     return thrust;
 }
 
-void customCtrl::StartCustomTorques(void)
+void customCtrl::StartController(void)
 {
     if (control_selection->CurrentIndex() == 0)
     {
@@ -221,14 +218,14 @@ void customCtrl::StartCustomTorques(void)
         }
         else
         {
-            StopCustomTorques();
+            StopCustomController();
             Thread::Err("customCtrl: could not start custom control law\n");
         }
     }
     
 }
 
-void customCtrl::StopCustomTorques(void)
+void customCtrl::StopCustomController(void)
 {
     StartDefaultTorques();
     controlMode_t = ControlMode_t::Default;
@@ -403,21 +400,16 @@ void customCtrl::ExtraSecurityCheck(void) {
     }
 }
 
-void customCtrl::ExtraCheckPushButton(void) {
-    if(startCircle->Clicked()) {
-        Start_task();
-    }
-    if(stopCircle->Clicked()) {
-        StopCircle();
+void customCtrl::ExtraCheckPushButton(void) 
+{
+    if(on_customController->Clicked()) {
+        StartController();
+    } 
+    if(off_customController->Clicked()) {
+        StopCustomController();
     }
     if(positionHold->Clicked()) {
         VrpnPositionHold();
-    }
-    if(on_customController->Clicked()) {
-        StartCustomTorques();
-    } 
-    if(off_customController->Clicked()) {
-        StopCustomTorques();
     }
 }
 

@@ -74,8 +74,8 @@ class customCtrl : public flair::meta::UavStateMachine {
         void SignalEvent(Event_t event) override;
         void ComputeCustomTorques(flair::core::Euler &torques);
         float ComputeCustomThrust(void);
-        void StartCustomTorques(void);
-        void StopCustomTorques(void);
+        void StartController(void);
+        void StopCustomController(void);
         void StartDefaultTorques(void);
         void computeMyCtrl(flair::core::Euler &torques);
 
@@ -86,7 +86,6 @@ class customCtrl : public flair::meta::UavStateMachine {
         float yawHold;
         float thrust;
 
-        flair::gui::PushButton *startCircle,*stopCircle,*positionHold;
         flair::meta::MetaVrpnObject *targetVrpn,*uavVrpn;
         flair::filter::TrajectoryGenerator2DCircle *circle;
         flair::core::AhrsData *customReferenceOrientation,*customOrientation;
@@ -94,12 +93,13 @@ class customCtrl : public flair::meta::UavStateMachine {
         // Control mode GUI
         flair::gui::GroupBox *controlModeBox;
         flair::gui::ComboBox *control_selection;
-        flair::gui::PushButton *on_customController, *off_customController;
+        flair::gui::PushButton *on_customController, *off_customController, *positionHold;
 
         // Custom control law
         flair::gui::DoubleSpinBox *deltaT_custom;
 
-        // Custom task
+        // Task mode GUI
+        flair::gui::GroupBox *taskModeBox;
         flair::gui::ComboBox *task_selection;
         flair::gui::Vector3DSpinBox *desired_position;
         flair::gui::DoubleSpinBox *desired_yaw;
