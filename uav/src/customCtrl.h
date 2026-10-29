@@ -93,7 +93,7 @@ class customCtrl : public flair::meta::UavStateMachine {
         // Control mode GUI
         flair::gui::GroupBox *controlModeBox;
         flair::gui::ComboBox *control_selection;
-        flair::gui::PushButton *on_customController, *off_customController, *positionHold;
+        flair::gui::PushButton *on_controller, *off_controller, *positionHold;
 
         // Custom control law
         flair::gui::DoubleSpinBox *deltaT_custom;

@@ -73,8 +73,8 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     control_selection = new ComboBox(controlModeBox->NewRow(), "Control selection");
     control_selection->AddItem("Default");
     control_selection->AddItem("Custom controller");
-    on_customController = new PushButton(controlModeBox->NewRow(), "Activate");
-    off_customController = new PushButton(controlModeBox->NewRow(), "Use default");
+    on_controller = new PushButton(controlModeBox->NewRow(), "Activate");
+    off_controller = new PushButton(controlModeBox->NewRow(), "Use default");
     positionHold = new PushButton(controlModeBox->NewRow(),"Position hold");
 
     // Groupbox for task selection
@@ -84,8 +84,8 @@ customCtrl::customCtrl(TargetController *controller): UavStateMachine(controller
     task_selection->AddItem("Regulation task");
     task_selection->AddItem("Circle tracking");
 
-    desired_position = new Vector3DSpinBox(taskModeBox->NewRow(), "Desired position", -3, 3, 0.1, 3);
-    desired_yaw = new DoubleSpinBox(taskModeBox->NewRow(), "Desired yaw", -M_PI, M_PI, 0.1, 3);
+    desired_position = new Vector3DSpinBox(taskModeBox->NewRow(), "Desired position [m]", -3, 3, 0.1, 3);
+    desired_yaw = new DoubleSpinBox(taskModeBox->NewRow(), "Desired yaw [rad]", -M_PI, M_PI, 0.1, 3);
 
     circle=new TrajectoryGenerator2DCircle(vrpnclient->GetLayout()->NewRow(),"circle");
     uavVrpn->xPlot()->AddCurve(circle->GetMatrix()->Element(0,0),DataPlot::Blue);
@@ -165,6 +165,12 @@ void customCtrl::computeMyCtrl(Euler &torques)
     // Example of desired altitude [m] => (ALWAYS A POSITIVE VALUE) 
     // Because the AltitudeValues function returns a positive value also. However, the UAV's altitude is negative in the VRPN coordinate system.
     float altittude_desired = desired_position->Value().z; 
+    if (altittude_desired <= 0)
+    {
+        Thread::Warn("customCtrl: desired altitude must be positive, see AltitudeValues function.\n");
+        EnterFailSafeMode();
+        return;
+    }
     float yaw_ref;
     float z, dz;
     AltitudeValues(z, dz);
@@ -228,8 +234,9 @@ void customCtrl::StartController(void)
 void customCtrl::StopCustomController(void)
 {
     StartDefaultTorques();
+    EnterFailSafeMode();
     controlMode_t = ControlMode_t::Default;
-    Thread::Info("customCtrl: custom control law stopped\n");
+    Thread::Info("customCtrl: failing safe mode activated, custom control law stopped\n");
 }
 
 void customCtrl::StartDefaultTorques(void)
@@ -402,10 +409,10 @@ void customCtrl::ExtraSecurityCheck(void) {
 
 void customCtrl::ExtraCheckPushButton(void) 
 {
-    if(on_customController->Clicked()) {
+    if(on_controller->Clicked()) {
         StartController();
     } 
-    if(off_customController->Clicked()) {
+    if(off_controller->Clicked()) {
         StopCustomController();
     }
     if(positionHold->Clicked()) {
@@ -423,12 +430,7 @@ void customCtrl::ExtraCheckJoystick(void) {
 
     //R1 and Circle
     if(GetTargetController()->ButtonClicked(4) && GetTargetController()->IsButtonPressed(9)) {
-        Start_task();
-    }
-
-    //R1 and Cross
-    if(GetTargetController()->ButtonClicked(5) && GetTargetController()->IsButtonPressed(9)) {
-        StopCircle();
+        StartController();
     }
     
     //R1 and Square
@@ -443,9 +445,9 @@ void customCtrl::Start_task(void) {
         return;
     }
     if (SetOrientationMode(OrientationMode_t::Custom)) {
-        Thread::Info("customCtrl: start circle\n");
+        Thread::Info("customCtrl: starting custom task ...\n");
     } else {
-        Thread::Warn("customCtrl: could not start circle\n");
+        Thread::Warn("customCtrl: could not start custom task\n");
         return;
     }
 
@@ -476,6 +478,7 @@ void customCtrl::Start_task(void) {
         Thread::Info("customCtrl: circle tracking\n");
     }
     else {
+        EnterFailSafeMode();
         Thread::Err("customCtrl: unknown task\n");
         return;
     }
