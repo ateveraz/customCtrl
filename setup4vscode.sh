@@ -17,8 +17,8 @@
 # USAGE:
 #   1. Ensure this script is in the root of the project directory.
 #   2. Make sure the 'flair-src' exist and the toolchains and flair are installed.
-#   3. Run from the terminal: chmod +x setup.sh && ./setup.sh
-#   4. Open the source project folder in VSCode or CLion.
+#   3. Run from the terminal: chmod +x setup4vscode.sh && ./setup4vscode.sh
+#   4. Open the source project folder in VSCode.
 # ==============================================================================
 
 #set -e # Exit script on any error
